@@ -43,6 +43,28 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
+      {profile?.role === "checker" && (
+        <div className="mt-6 space-y-2">
+          <Link
+            href="/documents/checker-queue"
+            className="block rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
+          >
+            Checker queue →
+          </Link>
+        </div>
+      )}
+
+      {(profile?.role === "admin" || profile?.role === "checker") && (
+        <div className="mt-6 space-y-2">
+          <Link
+            href="/admin/vendors"
+            className="block rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
+          >
+            Manage vendors →
+          </Link>
+        </div>
+      )}
+
       {profile?.role === "admin" && (
         <div className="mt-6 space-y-2">
           <Link
@@ -50,6 +72,12 @@ export default async function DashboardPage() {
             className="block rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
           >
             Manage clients →
+          </Link>
+          <Link
+            href="/admin/tds-codes"
+            className="block rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
+          >
+            Manage TDS codes →
           </Link>
           <Link
             href="/admin/users"
@@ -67,8 +95,8 @@ export default async function DashboardPage() {
       )}
 
       <p className="mt-8 text-sm text-slate-400">
-        Extraction, approvals and payments are not built yet — email intake and Google Drive
-        filing are still to come too. This covers manual upload and filing only.
+        Payments, Google Sheets and Tally exports aren&apos;t built yet — email intake and Google
+        Drive filing are still to come too.
       </p>
     </main>
   );

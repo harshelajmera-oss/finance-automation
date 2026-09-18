@@ -1,21 +1,29 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { Client, Document, Extraction } from "@/lib/supabase/types";
+import { findVendorMatch } from "@/lib/vendors/match";
+import type { Client, Document, Extraction, Profile, Review, TdsCode, Vendor } from "@/lib/supabase/types";
 import ViewDocumentButton from "../view-document-button";
 import ExtractButton from "./extract-button";
+import ReviewForm from "./review-form";
+import ReviewSummary from "./review-summary";
+import CheckerDecision from "./checker-decision";
 
 type DocumentRow = Document & { clients: Pick<Client, "name" | "code"> | null };
 
 function statusBadge(status: string) {
   const styles: Record<string, string> = {
     completed: "bg-green-100 text-green-800",
+    approved: "bg-green-100 text-green-800",
     failed: "bg-red-100 text-red-800",
+    rejected: "bg-red-100 text-red-800",
+    submitted: "bg-blue-100 text-blue-800",
     pending: "bg-slate-100 text-slate-700",
+    not_submitted: "bg-slate-100 text-slate-700",
   };
   return (
     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${styles[status] ?? styles.pending}`}>
-      {status}
+      {status.replace("_", " ")}
     </span>
   );
 }
@@ -28,6 +36,12 @@ export default async function DocumentDetailPage({ params }: { params: Promise<{
   } = await supabase.auth.getUser();
 
   if (!user) redirect("/login");
+
+  const { data: currentProfile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single<Profile>();
 
   const { data: document } = await supabase
     .from("documents")
@@ -54,8 +68,44 @@ export default async function DocumentDetailPage({ params }: { params: Promise<{
     .limit(1)
     .maybeSingle<Extraction>();
 
-  const fields = extraction?.status === "completed" ? extraction.fields : null;
+  const { data: latestReview } = await supabase
+    .from("reviews")
+    .select("*")
+    .eq("document_id", id)
+    .order("submitted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<Review>();
+
+  const aiFields = extraction?.status === "completed" ? extraction.fields : null;
   const flags = extraction?.status === "completed" ? extraction.flags : [];
+  const role = currentProfile?.role;
+
+  let reviewVendor: Vendor | null = null;
+  if (latestReview?.vendor_id) {
+    const { data } = await supabase.from("vendors").select("*").eq("id", latestReview.vendor_id).single<Vendor>();
+    reviewVendor = data;
+  }
+
+  // Fetch what the maker's form needs only when it's actually going to render.
+  const needsReviewForm =
+    aiFields !== null && role === "maker" && (document.review_status === "not_submitted" || document.review_status === "rejected");
+
+  let vendorMatch: Vendor | null = null;
+  let possibleNameMatches: Vendor[] = [];
+  let tdsCodes: TdsCode[] = [];
+
+  if (needsReviewForm && aiFields) {
+    const match = await findVendorMatch(supabase, document.org_id, aiFields.vendor.gstin, aiFields.vendor.pan, aiFields.vendor.name);
+    vendorMatch = match.vendor;
+    possibleNameMatches = match.possibleNameMatches;
+
+    const { data: codes } = await supabase
+      .from("tds_codes")
+      .select("*")
+      .order("code", { ascending: true })
+      .returns<TdsCode[]>();
+    tdsCodes = codes ?? [];
+  }
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
@@ -74,9 +124,11 @@ export default async function DocumentDetailPage({ params }: { params: Promise<{
         <ViewDocumentButton documentId={document.id} />
       </div>
 
-      <div className="mb-6 flex items-center gap-2">
+      <div className="mb-6 flex flex-wrap items-center gap-2">
         <span className="text-sm text-slate-500">Extraction:</span>
         {statusBadge(document.extraction_status)}
+        <span className="ml-2 text-sm text-slate-500">Review:</span>
+        {statusBadge(document.review_status)}
         {document.status === "duplicate" && (
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
             Duplicate
@@ -95,117 +147,64 @@ export default async function DocumentDetailPage({ params }: { params: Promise<{
         </div>
       )}
 
-      {fields && (
-        <div className="space-y-6">
-          {flags.length > 0 && (
-            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="mb-2 text-sm font-semibold text-slate-900">Flags</h2>
-              <ul className="space-y-1">
-                {flags.map((f, i) => (
-                  <li
-                    key={i}
-                    className={`text-sm ${f.severity === "error" ? "text-red-700" : "text-amber-700"}`}
-                  >
-                    {f.message}
-                  </li>
-                ))}
-              </ul>
+      {aiFields && (
+        <>
+          {needsReviewForm && (
+            <ReviewForm
+              documentId={document.id}
+              initialFields={document.review_status === "rejected" && latestReview ? latestReview.reviewed_fields : aiFields}
+              flags={flags}
+              vendorMatch={vendorMatch}
+              possibleNameMatches={possibleNameMatches}
+              tdsCodes={tdsCodes}
+              rejectionComment={document.review_status === "rejected" ? latestReview?.checker_comment : null}
+            />
+          )}
+
+          {!needsReviewForm && latestReview && (
+            <div className="space-y-4">
+              <ReviewSummary aiFields={aiFields} review={latestReview} vendor={reviewVendor} />
+
+              {role === "checker" && latestReview.status === "submitted" && latestReview.submitted_by !== user.id && (
+                <CheckerDecision
+                  reviewId={latestReview.id}
+                  vendorPendingId={reviewVendor && !reviewVendor.is_approved ? reviewVendor.id : null}
+                />
+              )}
+              {role === "checker" && latestReview.status === "submitted" && latestReview.submitted_by === user.id && (
+                <p className="text-sm text-amber-700">
+                  You submitted this document yourself, so you can&apos;t also approve it — another checker needs to.
+                </p>
+              )}
             </div>
           )}
-          {flags.length === 0 && (
-            <p className="text-sm text-green-700">No flags raised by the automatic checks.</p>
-          )}
 
-          <FieldGroup title="Document" data={fields.document} />
-          <FieldGroup title="Vendor" data={fields.vendor} />
-          <FieldGroup title="Billed to" data={fields.billed_to} />
-          <FieldGroup
-            title="Service"
-            data={{
-              description: fields.service.description,
-              sac_hsn: fields.service.sac_hsn,
-              service_period_from: fields.service.service_period_from,
-              service_period_to: fields.service.service_period_to,
-            }}
-          />
-          {fields.service.line_items.length > 0 && (
-            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="mb-2 text-sm font-semibold text-slate-900">Line items</h2>
-              <table className="w-full text-left text-sm">
-                <thead className="text-slate-500">
-                  <tr>
-                    <th className="py-1 pr-2 font-medium">Description</th>
-                    <th className="py-1 pr-2 font-medium">Qty</th>
-                    <th className="py-1 pr-2 font-medium">Rate</th>
-                    <th className="py-1 font-medium">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {fields.service.line_items.map((line, i) => (
-                    <tr key={i} className="border-t border-slate-100">
-                      <td className="py-1 pr-2 text-slate-900">{line.description ?? "—"}</td>
-                      <td className="py-1 pr-2 text-slate-900">{line.qty ?? "—"}</td>
-                      <td className="py-1 pr-2 text-slate-900">{line.rate ?? "—"}</td>
-                      <td className="py-1 text-slate-900">{line.amount ?? "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {!needsReviewForm && !latestReview && (
+            <div className="space-y-4">
+              {flags.length > 0 && (
+                <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                  <h2 className="mb-2 text-sm font-semibold text-slate-900">Flags from extraction</h2>
+                  <ul className="space-y-1">
+                    {flags.map((f, i) => (
+                      <li key={i} className={`text-sm ${f.severity === "error" ? "text-red-700" : "text-amber-700"}`}>
+                        {f.message}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <p className="text-sm text-slate-500">Waiting for a maker to review this document.</p>
             </div>
           )}
-          <FieldGroup title="Amounts" data={fields.amounts} />
-          <FieldGroup
-            title="Notes"
-            data={{
-              tds_mentioned: fields.notes.tds_mentioned,
-              reverse_charge_mentioned: fields.notes.reverse_charge_mentioned,
-              credit_lines_against_earlier_invoices: fields.notes.credit_lines_against_earlier_invoices,
-            }}
-          />
 
-          {fields.low_confidence_fields.length > 0 && (
-            <p className="text-xs text-slate-400">
-              Low confidence on: {fields.low_confidence_fields.join(", ")}
-            </p>
-          )}
-
-          <div>
+          <div className="mt-6">
             <ExtractButton documentId={document.id} />
             <p className="mt-1 text-xs text-slate-400">
               Re-running replaces nothing — it adds a new attempt, and the one above stays on record.
             </p>
           </div>
-
-          <p className="text-xs text-slate-400">
-            This is the AI&apos;s first read of the document — nothing here is confirmed yet. Reviewing
-            and correcting these fields is the next step, not built yet.
-          </p>
-        </div>
+        </>
       )}
     </main>
-  );
-}
-
-function FieldGroup({ title, data }: { title: string; data: Record<string, unknown> }) {
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <h2 className="mb-2 text-sm font-semibold text-slate-900">{title}</h2>
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
-        {Object.entries(data).map(([key, value]) => (
-          <div key={key}>
-            <dt className="text-xs text-slate-400">{key.replace(/_/g, " ")}</dt>
-            <dd className="text-slate-900">
-              {value === null || value === undefined || value === ""
-                ? "—"
-                : typeof value === "boolean"
-                  ? value
-                    ? "Yes"
-                    : "No"
-                  : String(value)}
-            </dd>
-          </div>
-        ))}
-      </dl>
-    </div>
   );
 }

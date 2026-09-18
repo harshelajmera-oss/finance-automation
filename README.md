@@ -3,7 +3,7 @@
 A finance automation portal for Jhawar Mantri & Associates. The full plan is in
 [`SPEC.md`](./SPEC.md); this README covers what's actually built and how to run it.
 
-## What's built (Step 1, part of Step 2, and Step 3)
+## What's built (Step 1, part of Step 2, Step 3, and Step 4)
 
 The build sequence has six steps.
 
@@ -54,9 +54,32 @@ The build sequence has six steps.
   number, amounts, flag count) with totals, plus a **Download as Excel** button. This is not the
   spec's actual Google Sheets purchase register (that's Step 6) — it's a review aid for now.
 
-Not yet built: email intake (needs a Google account connection), Google Drive filing, the
-maker/checker review and approval screens, vendor master, TDS/gross-up, payments, and the Google
-Sheets/Tally exports.
+**Step 4 — maker review, checker approval, vendor master, TDS and gross-up:**
+
+- A **vendor master** (`vendors` table): matched by GSTIN first, then PAN — never by name alone,
+  per the spec (a similar name only shows as a warning). No match → a new vendor record is created
+  automatically when a maker submits, sitting as "pending approval" until a checker or admin signs
+  off on it. Entity type (Individual/Firm or LLP/Company/HUF) is derived from the PAN's 4th
+  character, a fixed fact, not a guess.
+- A **TDS codes** table an admin maintains (seeded with the two examples the spec names, 1027 and
+  1024) — deliberately *not* auto-suggested from "nature of service," since your spec's own open
+  points list a full TDS rate table as still undecided. The one rule the spec does state plainly is
+  implemented: a vendor's last-used TDS code and ledger become its new defaults automatically.
+- **Gross-up**: enter the agreed net amount and the rate, and the gross and TDS are computed for
+  you — verified against the exact worked example in your spec (₹1,00,000 net @ 10% → ₹1,11,111
+  gross, ₹11,111 TDS).
+- The **maker screen**: every extracted field is editable, submitting is blocked while an
+  error-level flag is open unless a reason is written, and picking a payment route (portal / card /
+  employee / auto-debit / pay gross and recover) is part of submitting.
+- The **checker queue**: everything awaiting a decision, oldest first, showing exactly what the
+  maker changed from Claude's original read (old value → new value). Approve, or reject with a
+  required comment. A checker can never approve a document they submitted themselves — enforced in
+  the database itself, not just the screen, matching the control rule from Step 1.
+- Not built yet: **bulk approve** for flag-free items (the spec allows it; only single approve/
+  reject exists so far).
+
+Not yet built: email intake (needs a Google account connection), Google Drive filing, payments, and
+the Google Sheets/Tally exports.
 
 ## How the pieces fit together
 
@@ -68,6 +91,8 @@ Sheets/Tally exports.
 - `supabase/migrations/0001_init.sql` — organizations, profiles, roles, and the audit log.
 - `supabase/migrations/0002_clients_and_documents.sql` — clients, documents, and file storage.
 - `supabase/migrations/0003_extraction.sql` — extraction results and the flags they raise.
+- `supabase/migrations/0004_review.sql` — vendors, TDS codes, reviews, and the checker's approve/
+  reject rules (including "never approve your own submission," enforced in the database).
   Run each migration file after the last, in order, the same way (paste into the Supabase SQL
   Editor, click Run).
 - `supabase/seed.sql` — creates the one organization row the firm's users belong to.

@@ -27,6 +27,20 @@ function ExtractionBadge({ status }: { status: Document["extraction_status"] }) 
   );
 }
 
+function ReviewBadge({ status }: { status: Document["review_status"] }) {
+  const styles: Record<Document["review_status"], string> = {
+    approved: "bg-green-100 text-green-800",
+    rejected: "bg-red-100 text-red-800",
+    submitted: "bg-blue-100 text-blue-800",
+    not_submitted: "bg-slate-100 text-slate-500",
+  };
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${styles[status]}`}>
+      {status.replace("_", " ")}
+    </span>
+  );
+}
+
 export default function DocumentsTable({ documents }: { documents: DocumentRow[] }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -149,6 +163,7 @@ export default function DocumentsTable({ documents }: { documents: DocumentRow[]
               <th className="px-4 py-2 font-medium">File</th>
               <th className="px-4 py-2 font-medium">Status</th>
               <th className="px-4 py-2 font-medium">Extraction</th>
+              <th className="px-4 py-2 font-medium">Review</th>
               <th className="px-4 py-2 font-medium"></th>
             </tr>
           </thead>
@@ -189,13 +204,16 @@ export default function DocumentsTable({ documents }: { documents: DocumentRow[]
                   <ExtractionBadge status={d.extraction_status} />
                 </td>
                 <td className="px-4 py-2">
+                  <ReviewBadge status={d.review_status} />
+                </td>
+                <td className="px-4 py-2">
                   <ViewDocumentButton documentId={d.id} />
                 </td>
               </tr>
             ))}
             {documents.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={8} className="px-4 py-6 text-center text-slate-400">
                   Nothing uploaded yet.
                 </td>
               </tr>

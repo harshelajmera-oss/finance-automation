@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { extractInvoiceFields, isExtractable } from "@/lib/extraction/claude";
 import { computeValidationFlags } from "@/lib/extraction/validate";
+import { entityTypeFromPan } from "@/lib/vendors/entity-type";
+import type { ExtractedFields } from "@/lib/extraction/schema";
+import type { PaymentRoute, TdsTreatment } from "@/lib/supabase/types";
 
 /**
  * Files live in a private storage bucket, so viewing one means minting a
@@ -104,4 +107,122 @@ export async function runExtraction(documentId: string) {
 
   revalidatePath(`/documents/${documentId}`);
   revalidatePath("/documents");
+}
+
+interface SubmitReviewPayload {
+  reviewedFields: ExtractedFields;
+  vendor:
+    | { id: string; name: string; tallyLedgerName: string; tdsTreatment: TdsTreatment }
+    | { name: string; tallyLedgerName: string; tdsTreatment: TdsTreatment };
+  expenseLedger: string;
+  tdsCode: string | null;
+  tdsRate: number | null;
+  tdsAmount: number | null;
+  grossUp: boolean;
+  paymentRoute: PaymentRoute;
+  overrideReason: string | null;
+}
+
+export async function submitReview(documentId: string, payload: SubmitReviewPayload) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Not signed in.");
+
+  const { data: profile } = await supabase.from("profiles").select("role, org_id").eq("id", user.id).single();
+
+  if (!profile || profile.role !== "maker") {
+    throw new Error("Only makers can submit documents for review.");
+  }
+
+  let vendorId = "id" in payload.vendor ? payload.vendor.id : null;
+
+  if (!vendorId) {
+    const { data: newVendor, error: vendorError } = await supabase
+      .from("vendors")
+      .insert({
+        org_id: profile.org_id,
+        name: payload.vendor.name,
+        gstin: payload.reviewedFields.vendor.gstin,
+        pan: payload.reviewedFields.vendor.pan,
+        entity_type: entityTypeFromPan(payload.reviewedFields.vendor.pan),
+        state: payload.reviewedFields.vendor.state,
+        bank_account: payload.reviewedFields.vendor.bank_account,
+        ifsc: payload.reviewedFields.vendor.ifsc,
+        tally_ledger_name: payload.vendor.tallyLedgerName || null,
+        default_expense_ledger: payload.expenseLedger || null,
+        last_tds_code: payload.tdsCode,
+        last_tds_rate: payload.tdsRate,
+        gross_up: payload.grossUp,
+        tds_treatment: payload.vendor.tdsTreatment,
+        created_by: user.id,
+      })
+      .select("id")
+      .single();
+
+    if (vendorError) throw new Error(vendorError.message);
+    vendorId = newVendor.id;
+  }
+
+  const { error } = await supabase.from("reviews").insert({
+    document_id: documentId,
+    org_id: profile.org_id,
+    submitted_by: user.id,
+    reviewed_fields: payload.reviewedFields,
+    vendor_id: vendorId,
+    expense_ledger: payload.expenseLedger || null,
+    tds_code: payload.tdsCode,
+    tds_rate: payload.tdsRate,
+    tds_amount: payload.tdsAmount,
+    gross_up: payload.grossUp,
+    payment_route: payload.paymentRoute,
+    override_reason: payload.overrideReason,
+  });
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/documents/${documentId}`);
+  revalidatePath("/documents/checker-queue");
+}
+
+export async function decideReview(
+  reviewId: string,
+  status: "approved" | "rejected",
+  comment: string,
+  approveVendorId: string | null,
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Not signed in.");
+
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+
+  if (!profile || profile.role !== "checker") {
+    throw new Error("Only checkers can approve or reject a submission.");
+  }
+
+  if (status === "rejected" && !comment.trim()) {
+    throw new Error("A comment is required to reject.");
+  }
+
+  const { data: review } = await supabase.from("reviews").select("document_id").eq("id", reviewId).single();
+
+  const { error } = await supabase
+    .from("reviews")
+    .update({ status, checker_comment: comment.trim() || null })
+    .eq("id", reviewId);
+
+  if (error) throw new Error(error.message);
+
+  if (status === "approved" && approveVendorId) {
+    await supabase.from("vendors").update({ is_approved: true }).eq("id", approveVendorId);
+  }
+
+  revalidatePath("/documents/checker-queue");
+  if (review) revalidatePath(`/documents/${review.document_id}`);
 }
