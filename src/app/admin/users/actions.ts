@@ -39,15 +39,38 @@ export async function updateUserRole(userId: string, role: UserRole) {
   revalidatePath("/admin/users");
 }
 
-export async function inviteUser(email: string, role: UserRole) {
+export async function createUserWithPassword(email: string, password: string, role: UserRole) {
   const { orgId } = await requireAdmin();
 
+  if (password.length < 8) {
+    throw new Error("Password must be at least 8 characters.");
+  }
+
   const admin = createAdminClient();
-  const { error } = await admin.auth.admin.inviteUserByEmail(email, {
-    data: { role, org_id: orgId },
+  const { error } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { role, org_id: orgId },
   });
 
   if (error) throw new Error(error.message);
 
   revalidatePath("/admin/users");
+}
+
+export async function setUserPassword(userId: string, password: string) {
+  await requireAdmin();
+
+  if (password.length < 8) {
+    throw new Error("Password must be at least 8 characters.");
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(userId, {
+    password,
+    email_confirm: true,
+  });
+
+  if (error) throw new Error(error.message);
 }

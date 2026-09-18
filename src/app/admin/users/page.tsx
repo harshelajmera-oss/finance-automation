@@ -2,8 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/supabase/types";
-import InviteUserForm from "./invite-user-form";
+import CreateUserForm from "./create-user-form";
 import RoleSelect from "./role-select";
+import SetPasswordControl from "./set-password-control";
 
 export default async function AdminUsersPage() {
   const supabase = await createClient();
@@ -43,6 +44,7 @@ export default async function AdminUsersPage() {
               <th className="px-4 py-2 font-medium">Email</th>
               <th className="px-4 py-2 font-medium">Role</th>
               <th className="px-4 py-2 font-medium">Active</th>
+              <th className="px-4 py-2 font-medium">Password</th>
             </tr>
           </thead>
           <tbody>
@@ -53,11 +55,14 @@ export default async function AdminUsersPage() {
                   <RoleSelect userId={p.id} currentRole={p.role} disabled={p.id === user.id} />
                 </td>
                 <td className="px-4 py-2 text-slate-500">{p.is_active ? "Yes" : "No"}</td>
+                <td className="px-4 py-2">
+                  <SetPasswordControl userId={p.id} />
+                </td>
               </tr>
             ))}
             {(profiles ?? []).length === 0 && (
               <tr>
-                <td colSpan={3} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
                   No users yet.
                 </td>
               </tr>
@@ -67,7 +72,7 @@ export default async function AdminUsersPage() {
       </div>
 
       <h2 className="mb-3 text-base font-semibold text-slate-900">Add a new user</h2>
-      <InviteUserForm />
+      <CreateUserForm />
     </main>
   );
 }

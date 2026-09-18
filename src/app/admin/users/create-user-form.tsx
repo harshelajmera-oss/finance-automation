@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useTransition, type FormEvent } from "react";
-import { inviteUser } from "./actions";
+import { createUserWithPassword } from "./actions";
 import type { UserRole } from "@/lib/supabase/types";
 
-export default function InviteUserForm() {
+export default function CreateUserForm() {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("maker");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -17,11 +18,14 @@ export default function InviteUserForm() {
     setMessage(null);
     startTransition(async () => {
       try {
-        await inviteUser(email, role);
-        setMessage(`Invitation sent to ${email}.`);
+        await createUserWithPassword(email, password, role);
+        setMessage(
+          `Account created for ${email}. Share the password with them directly — there's no invite email.`,
+        );
         setEmail("");
+        setPassword("");
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not send invitation.");
+        setError(err instanceof Error ? err.message : "Could not create account.");
       }
     });
   }
@@ -38,6 +42,20 @@ export default function InviteUserForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+        />
+      </div>
+      <div className="min-w-[160px]">
+        <label className="mb-1 block text-sm font-medium text-slate-700">
+          Temporary password
+        </label>
+        <input
+          type="text"
+          required
+          minLength={8}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="At least 8 characters"
           className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
         />
       </div>
@@ -58,7 +76,7 @@ export default function InviteUserForm() {
         disabled={isPending}
         className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
       >
-        {isPending ? "Sending…" : "Send invitation"}
+        {isPending ? "Creating…" : "Create account"}
       </button>
       {message && <p className="w-full text-sm text-green-600">{message}</p>}
       {error && <p className="w-full text-sm text-red-600">{error}</p>}

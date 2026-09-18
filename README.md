@@ -58,10 +58,10 @@ than something done automatically.
    `service_role` secret key.
 4. Copy `.env.local.example` to `.env.local` and paste those three values in.
 5. Create the first admin account: in the Supabase dashboard under **Authentication → Users**,
-   add a user with your email, and under "User Metadata" set
-   `{"role": "admin"}` (the database trigger uses this to set up their profile). You can also do
-   this by inviting yourself from `/admin/users` once one admin already exists — the first one
-   has to be created directly in Supabase.
+   add a user with your email and a password, and under "User Metadata" set
+   `{"role": "admin"}` (the database trigger uses this to set up their profile). Every account
+   after this one can be created from `/admin/users` instead — an admin picks the person's email,
+   role, and a temporary password there directly; there's no invite email to configure.
 6. Run `npm run dev` and sign in at `/login`.
 
 **Do not do this step for me without checking first** — creating the Supabase project and
