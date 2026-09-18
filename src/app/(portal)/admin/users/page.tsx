@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/supabase/types";
@@ -32,10 +31,7 @@ export default async function AdminUsersPage() {
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
-      <Link href="/dashboard" className="text-sm text-slate-500 hover:underline">
-        ← Back to dashboard
-      </Link>
-      <h1 className="mt-2 mb-6 text-xl font-semibold text-slate-900">Users and roles</h1>
+      <h1 className="mb-6 text-xl font-semibold text-slate-900">Users and roles</h1>
 
       <div className="mb-8 overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-left text-sm">

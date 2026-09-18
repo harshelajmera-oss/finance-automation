@@ -96,5 +96,5 @@ export async function uploadDocument(formData: FormData) {
 
   revalidatePath("/documents");
 
-  return { isDuplicate: Boolean(existingMatch) };
+  return { documentId, isDuplicate: Boolean(existingMatch) };
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Client, Document } from "@/lib/supabase/types";
+import ViewDocumentButton from "./view-document-button";
 
 type DocumentRow = Document & { clients: Pick<Client, "name" | "code"> | null };
 
@@ -21,10 +22,7 @@ export default async function DocumentsPage() {
 
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
-      <div className="mb-2 flex items-center justify-between">
-        <Link href="/dashboard" className="text-sm text-slate-500 hover:underline">
-          ← Back to dashboard
-        </Link>
+      <div className="mb-2 flex items-center justify-end">
         <Link
           href="/documents/upload"
           className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
@@ -32,7 +30,7 @@ export default async function DocumentsPage() {
           Upload a document
         </Link>
       </div>
-      <h1 className="mt-2 mb-1 text-xl font-semibold text-slate-900">Documents</h1>
+      <h1 className="mb-1 text-xl font-semibold text-slate-900">Documents</h1>
       <p className="mb-6 text-sm text-slate-500">
         Everything received so far. Review, extraction and approval come in later steps — for now
         this just confirms intake and filing are working.
@@ -47,6 +45,7 @@ export default async function DocumentsPage() {
               <th className="px-4 py-2 font-medium">File</th>
               <th className="px-4 py-2 font-medium">Source</th>
               <th className="px-4 py-2 font-medium">Status</th>
+              <th className="px-4 py-2 font-medium"></th>
             </tr>
           </thead>
           <tbody>
@@ -71,11 +70,14 @@ export default async function DocumentsPage() {
                     </span>
                   )}
                 </td>
+                <td className="px-4 py-2">
+                  <ViewDocumentButton documentId={d.id} />
+                </td>
               </tr>
             ))}
             {(documents ?? []).length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
                   Nothing uploaded yet.
                 </td>
               </tr>

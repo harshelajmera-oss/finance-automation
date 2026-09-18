@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Client, Profile } from "@/lib/supabase/types";
@@ -30,10 +29,7 @@ export default async function AdminClientsPage() {
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
-      <Link href="/dashboard" className="text-sm text-slate-500 hover:underline">
-        ← Back to dashboard
-      </Link>
-      <h1 className="mt-2 mb-1 text-xl font-semibold text-slate-900">Clients</h1>
+      <h1 className="mb-1 text-xl font-semibold text-slate-900">Clients</h1>
       <p className="mb-6 text-sm text-slate-500">
         The firm&apos;s own clients, whose payables this portal manages. Every uploaded document
         belongs to one of these.

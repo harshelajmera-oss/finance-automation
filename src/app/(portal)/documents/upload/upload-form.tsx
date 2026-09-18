@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { uploadDocument } from "./actions";
+import { getDocumentViewUrl } from "../actions";
 import type { Client } from "@/lib/supabase/types";
 
 export default function UploadForm({ clients }: { clients: Client[] }) {
@@ -10,12 +11,15 @@ export default function UploadForm({ clients }: { clients: Client[] }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [lastUploadedId, setLastUploadedId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isViewPending, startViewTransition] = useTransition();
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setMessage(null);
+    setLastUploadedId(null);
 
     const formData = new FormData(e.currentTarget);
 
@@ -23,6 +27,7 @@ export default function UploadForm({ clients }: { clients: Client[] }) {
       try {
         const result = await uploadDocument(formData);
         formRef.current?.reset();
+        setLastUploadedId(result.documentId);
         setMessage(
           result.isDuplicate
             ? "Uploaded — but this looks like an exact copy of a file already on file, so it's been flagged as a duplicate."
@@ -31,6 +36,18 @@ export default function UploadForm({ clients }: { clients: Client[] }) {
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not upload that file.");
+      }
+    });
+  }
+
+  function handleView() {
+    if (!lastUploadedId) return;
+    startViewTransition(async () => {
+      try {
+        const url = await getDocumentViewUrl(lastUploadedId);
+        window.open(url, "_blank", "noopener,noreferrer");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not open that file.");
       }
     });
   }
@@ -84,7 +101,21 @@ export default function UploadForm({ clients }: { clients: Client[] }) {
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
-      {message && <p className="text-sm text-green-600">{message}</p>}
+      {message && (
+        <p className="text-sm text-green-600">
+          {message}{" "}
+          {lastUploadedId && (
+            <button
+              type="button"
+              onClick={handleView}
+              disabled={isViewPending}
+              className="underline hover:text-green-800 disabled:opacity-50"
+            >
+              {isViewPending ? "Opening…" : "View it"}
+            </button>
+          )}
+        </p>
+      )}
 
       <button
         type="submit"
