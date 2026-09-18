@@ -3,13 +3,11 @@
 A finance automation portal for Jhawar Mantri & Associates. The full plan is in
 [`SPEC.md`](./SPEC.md); this README covers what's actually built and how to run it.
 
-## What's built (Step 1 of 6)
+## What's built (Step 1, and part of Step 2)
 
-The build sequence has six steps. This repository currently implements **Step 1: accounts,
-database, logins, roles, audit log** — nothing about documents, extraction, approvals or
-payments exists yet.
+The build sequence has six steps.
 
-Concretely:
+**Step 1 — accounts, database, logins, roles, audit log:**
 
 - A Next.js app with a login page and a dashboard.
 - A Supabase (Postgres) schema with three roles — **maker**, **checker**, **admin** — stored on
@@ -22,16 +20,29 @@ Concretely:
 - Row Level Security so each firm's ("organization's") data is walled off from any other's, in
   preparation for later resale to other firms — Phase 1 itself only has one firm.
 
-Everything else in `SPEC.md` (email/upload intake, AI extraction, the maker/checker document
-screens, vendor master, payments, Google Sheets and Tally exports) is future work.
+**Step 2 — intake and filing (partial):**
+
+- A **clients** table and an admin screen to add them (the firm's own clients, e.g. "Elemento
+  Learning Technologies", code `ELEM`) — separate from `organizations`, which is the firm itself.
+- A manual **upload** screen: pick a client, upload a file (PDF/JPG/PNG/XLS/XLSX).
+- Filing into the `Client / financial-year / month` structure from the spec, based on the date
+  received, using Supabase's file storage (standing in for Google Drive until that's connected).
+- **Exact-duplicate detection**: an identical file uploaded twice is flagged as a duplicate of the
+  original rather than stored again as a new document — nothing is deleted.
+- A **documents** list to see what's come in.
+
+Not yet built: email intake (needs a Google account connection), Google Drive filing, AI
+extraction, the maker/checker review screens, vendor master, payments, and the Google Sheets/Tally
+exports.
 
 ## How the pieces fit together
 
 - **Next.js** (App Router, TypeScript, Tailwind) — the web app.
 - **Supabase** — Postgres database, plus its built-in auth for logins. No external account has
   been connected yet; see "Connecting Supabase" below.
-- `supabase/migrations/0001_init.sql` — the entire database schema (tables, roles, triggers,
-  Row Level Security policies) as one script.
+- `supabase/migrations/0001_init.sql` — organizations, profiles, roles, and the audit log.
+- `supabase/migrations/0002_clients_and_documents.sql` — clients, documents, and file storage.
+  Run this after `0001_init.sql`, the same way (paste into the Supabase SQL Editor, click Run).
 - `supabase/seed.sql` — creates the one organization row the firm's users belong to.
 
 ## Connecting Supabase (not done yet — do this when you're ready)

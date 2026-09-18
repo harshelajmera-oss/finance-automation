@@ -34,8 +34,29 @@ export default async function DashboardPage() {
         </p>
       </div>
 
+      <div className="mt-6 space-y-2">
+        <Link
+          href="/documents/upload"
+          className="block rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
+        >
+          Upload a document →
+        </Link>
+        <Link
+          href="/documents"
+          className="block rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
+        >
+          View documents →
+        </Link>
+      </div>
+
       {profile?.role === "admin" && (
         <div className="mt-6 space-y-2">
+          <Link
+            href="/admin/clients"
+            className="block rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
+          >
+            Manage clients →
+          </Link>
           <Link
             href="/admin/users"
             className="block rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
@@ -52,8 +73,8 @@ export default async function DashboardPage() {
       )}
 
       <p className="mt-8 text-sm text-slate-400">
-        Documents, extraction, approvals and payments are not built yet — this is Step 1 of the
-        build sequence (accounts, roles, audit log).
+        Extraction, approvals and payments are not built yet — email intake and Google Drive
+        filing are still to come too. This covers manual upload and filing only.
       </p>
     </main>
   );
