@@ -6,50 +6,75 @@ import { uploadDocument } from "./actions";
 import { getDocumentViewUrl } from "../actions";
 import type { Client } from "@/lib/supabase/types";
 
+interface FileResult {
+  name: string;
+  status: "uploaded" | "duplicate" | "error";
+  documentId?: string;
+  error?: string;
+}
+
 export default function UploadForm({ clients }: { clients: Client[] }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-  const [lastUploadedId, setLastUploadedId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [results, setResults] = useState<FileResult[] | null>(null);
+  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [isViewPending, startViewTransition] = useTransition();
+  const [viewingId, setViewingId] = useState<string | null>(null);
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(null);
-    setMessage(null);
-    setLastUploadedId(null);
 
-    const formData = new FormData(e.currentTarget);
+    const clientId = new FormData(e.currentTarget).get("clientId");
+    const files = fileInputRef.current?.files;
+
+    if (typeof clientId !== "string" || !clientId || !files || files.length === 0) {
+      return;
+    }
+
+    const fileArray = Array.from(files);
+    setResults(null);
 
     startTransition(async () => {
-      try {
-        const result = await uploadDocument(formData);
-        formRef.current?.reset();
-        setLastUploadedId(result.documentId);
-        setMessage(
-          result.isDuplicate
-            ? "Uploaded — but this looks like an exact copy of a file already on file, so it's been flagged as a duplicate."
-            : "Uploaded.",
-        );
-        router.refresh();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not upload that file.");
+      const outcomes: FileResult[] = [];
+
+      for (let i = 0; i < fileArray.length; i++) {
+        const file = fileArray[i];
+        setProgress({ current: i + 1, total: fileArray.length });
+
+        const formData = new FormData();
+        formData.set("clientId", clientId);
+        formData.set("file", file);
+
+        try {
+          const result = await uploadDocument(formData);
+          outcomes.push({
+            name: file.name,
+            status: result.isDuplicate ? "duplicate" : "uploaded",
+            documentId: result.documentId,
+          });
+        } catch (err) {
+          outcomes.push({
+            name: file.name,
+            status: "error",
+            error: err instanceof Error ? err.message : "Upload failed.",
+          });
+        }
       }
+
+      setProgress(null);
+      setResults(outcomes);
+      formRef.current?.reset();
+      router.refresh();
     });
   }
 
-  function handleView() {
-    if (!lastUploadedId) return;
-    startViewTransition(async () => {
-      try {
-        const url = await getDocumentViewUrl(lastUploadedId);
-        window.open(url, "_blank", "noopener,noreferrer");
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not open that file.");
-      }
-    });
+  function handleView(documentId: string) {
+    setViewingId(documentId);
+    getDocumentViewUrl(documentId)
+      .then((url) => window.open(url, "_blank", "noopener,noreferrer"))
+      .catch((err) => alert(err instanceof Error ? err.message : "Could not open that file."))
+      .finally(() => setViewingId(null));
   }
 
   if (clients.length === 0) {
@@ -87,34 +112,64 @@ export default function UploadForm({ clients }: { clients: Client[] }) {
 
       <div>
         <label htmlFor="file" className="mb-1 block text-sm font-medium text-slate-700">
-          File
+          Files
         </label>
         <input
+          ref={fileInputRef}
           id="file"
           name="file"
           type="file"
           required
+          multiple
           accept=".pdf,.jpg,.jpeg,.png,.xls,.xlsx"
           className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm"
         />
-        <p className="mt-1 text-xs text-slate-400">PDF, JPG, PNG, XLS or XLSX, up to 25 MB.</p>
+        <p className="mt-1 text-xs text-slate-400">
+          PDF, JPG, PNG, XLS or XLSX, up to 25 MB each. Select more than one at once if you like —
+          hold Ctrl (or Cmd on a Mac) while clicking to pick several.
+        </p>
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {message && (
-        <p className="text-sm text-green-600">
-          {message}{" "}
-          {lastUploadedId && (
-            <button
-              type="button"
-              onClick={handleView}
-              disabled={isViewPending}
-              className="underline hover:text-green-800 disabled:opacity-50"
-            >
-              {isViewPending ? "Opening…" : "View it"}
-            </button>
-          )}
+      {progress && (
+        <p className="text-sm text-slate-500">
+          Uploading {progress.current} of {progress.total}…
         </p>
+      )}
+
+      {results && (
+        <ul className="space-y-1 text-sm">
+          {results.map((r, i) => (
+            <li
+              key={i}
+              className={
+                r.status === "error"
+                  ? "text-red-600"
+                  : r.status === "duplicate"
+                    ? "text-amber-700"
+                    : "text-green-600"
+              }
+            >
+              <span className="font-medium">{r.name}</span>
+              {": "}
+              {r.status === "uploaded" && "uploaded."}
+              {r.status === "duplicate" && "uploaded — flagged as a duplicate."}
+              {r.status === "error" && `failed — ${r.error}`}
+              {r.documentId && (
+                <>
+                  {" "}
+                  <button
+                    type="button"
+                    onClick={() => handleView(r.documentId!)}
+                    disabled={viewingId === r.documentId}
+                    className="underline hover:opacity-80 disabled:opacity-50"
+                  >
+                    {viewingId === r.documentId ? "Opening…" : "View"}
+                  </button>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
 
       <button
