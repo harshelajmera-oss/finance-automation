@@ -21,6 +21,7 @@ export interface Client {
 }
 
 export type DocumentStatus = "received" | "duplicate";
+export type ExtractionStatus = "pending" | "completed" | "failed";
 
 export interface Document {
   id: string;
@@ -37,6 +38,19 @@ export interface Document {
   received_month: string;
   status: DocumentStatus;
   duplicate_of: string | null;
+  extraction_status: ExtractionStatus;
+  created_at: string;
+}
+
+export interface Extraction {
+  id: string;
+  document_id: string;
+  org_id: string;
+  model: string;
+  status: "completed" | "failed";
+  fields: import("@/lib/extraction/schema").ExtractedFields | null;
+  flags: import("@/lib/extraction/schema").ValidationFlag[];
+  error_message: string | null;
   created_at: string;
 }
 

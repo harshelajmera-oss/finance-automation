@@ -6,6 +6,17 @@ import ViewDocumentButton from "./view-document-button";
 
 type DocumentRow = Document & { clients: Pick<Client, "name" | "code"> | null };
 
+function ExtractionBadge({ status }: { status: Document["extraction_status"] }) {
+  const styles: Record<Document["extraction_status"], string> = {
+    completed: "bg-green-100 text-green-800",
+    failed: "bg-red-100 text-red-800",
+    pending: "bg-slate-100 text-slate-500",
+  };
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${styles[status]}`}>{status}</span>
+  );
+}
+
 export default async function DocumentsPage() {
   const supabase = await createClient();
   const {
@@ -32,8 +43,8 @@ export default async function DocumentsPage() {
       </div>
       <h1 className="mb-1 text-xl font-semibold text-slate-900">Documents</h1>
       <p className="mb-6 text-sm text-slate-500">
-        Everything received so far. Review, extraction and approval come in later steps — for now
-        this just confirms intake and filing are working.
+        Everything received so far. Click a file to extract its fields or see what Claude read.
+        Review and approval come in a later step.
       </p>
 
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -43,8 +54,8 @@ export default async function DocumentsPage() {
               <th className="px-4 py-2 font-medium">Received</th>
               <th className="px-4 py-2 font-medium">Client</th>
               <th className="px-4 py-2 font-medium">File</th>
-              <th className="px-4 py-2 font-medium">Source</th>
               <th className="px-4 py-2 font-medium">Status</th>
+              <th className="px-4 py-2 font-medium">Extraction</th>
               <th className="px-4 py-2 font-medium"></th>
             </tr>
           </thead>
@@ -57,8 +68,11 @@ export default async function DocumentsPage() {
                 <td className="px-4 py-2 text-slate-900">
                   {d.clients ? `${d.clients.name} (${d.clients.code})` : "—"}
                 </td>
-                <td className="px-4 py-2 text-slate-900">{d.original_filename}</td>
-                <td className="px-4 py-2 capitalize text-slate-500">{d.source}</td>
+                <td className="px-4 py-2">
+                  <Link href={`/documents/${d.id}`} className="text-slate-900 underline hover:no-underline">
+                    {d.original_filename}
+                  </Link>
+                </td>
                 <td className="px-4 py-2">
                   {d.status === "duplicate" ? (
                     <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
@@ -69,6 +83,9 @@ export default async function DocumentsPage() {
                       Received
                     </span>
                   )}
+                </td>
+                <td className="px-4 py-2">
+                  <ExtractionBadge status={d.extraction_status} />
                 </td>
                 <td className="px-4 py-2">
                   <ViewDocumentButton documentId={d.id} />

@@ -3,7 +3,7 @@
 A finance automation portal for Jhawar Mantri & Associates. The full plan is in
 [`SPEC.md`](./SPEC.md); this README covers what's actually built and how to run it.
 
-## What's built (Step 1, and part of Step 2)
+## What's built (Step 1, part of Step 2, and Step 3)
 
 The build sequence has six steps.
 
@@ -31,18 +31,39 @@ The build sequence has six steps.
   original rather than stored again as a new document — nothing is deleted.
 - A **documents** list to see what's come in.
 
-Not yet built: email intake (needs a Google account connection), Google Drive filing, AI
-extraction, the maker/checker review screens, vendor master, payments, and the Google Sheets/Tally
-exports.
+**Step 3 — AI extraction of invoice fields:**
+
+- Claude reads each uploaded PDF/JPG/PNG and extracts the fields listed in SPEC.md's "Extraction
+  and validation" section (document, vendor, billed-to, service, amounts, notes) — from a document
+  detail page reachable by clicking any file in the Documents list.
+- The extracted values are never trusted blindly: a set of deterministic checks (not the AI itself)
+  re-verifies GSTIN format, GSTIN-vs-PAN, CGST/SGST-vs-IGST by state, tax and line-item arithmetic,
+  billed-to match, invoice completeness, dates, and late receipt — and shows the result as flags.
+  Two checks from the spec aren't implemented yet: the GSTIN check-digit algorithm (format is
+  checked, the checksum math is not) and IFSC lookup (needs Razorpay's database, a further
+  connection).
+- Every extraction attempt is its own row, kept forever — re-running adds a new attempt rather than
+  overwriting the last one, and each one is logged to the audit trail like everything else.
+- Nothing here is edited or confirmed by a person yet — that's the maker screen, Step 4.
+- XLS/XLSX bulk payout sheets aren't sent through this at all (by design — they go through a
+  different grid-view flow later, not per-invoice field extraction).
+
+Not yet built: email intake (needs a Google account connection), Google Drive filing, the
+maker/checker review and approval screens, vendor master, TDS/gross-up, payments, and the Google
+Sheets/Tally exports.
 
 ## How the pieces fit together
 
 - **Next.js** (App Router, TypeScript, Tailwind) — the web app.
 - **Supabase** — Postgres database, plus its built-in auth for logins. No external account has
   been connected yet; see "Connecting Supabase" below.
+- **Anthropic API** — reads uploaded documents and extracts their fields. Connected as of Step 3;
+  the key lives in `.env.local` only, never committed.
 - `supabase/migrations/0001_init.sql` — organizations, profiles, roles, and the audit log.
 - `supabase/migrations/0002_clients_and_documents.sql` — clients, documents, and file storage.
-  Run this after `0001_init.sql`, the same way (paste into the Supabase SQL Editor, click Run).
+- `supabase/migrations/0003_extraction.sql` — extraction results and the flags they raise.
+  Run each migration file after the last, in order, the same way (paste into the Supabase SQL
+  Editor, click Run).
 - `supabase/seed.sql` — creates the one organization row the firm's users belong to.
 
 ## Connecting Supabase (not done yet — do this when you're ready)
