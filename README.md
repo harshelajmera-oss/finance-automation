@@ -47,6 +47,12 @@ The build sequence has six steps.
 - Nothing here is edited or confirmed by a person yet — that's the maker screen, Step 4.
 - XLS/XLSX bulk payout sheets aren't sent through this at all (by design — they go through a
   different grid-view flow later, not per-invoice field extraction).
+- **Bulk extraction**: checkboxes on the Documents list ("Select all pending" or pick individually)
+  let you extract several documents in one go — they still run one at a time behind the scenes,
+  with a progress count, since each is a separate call to Claude.
+- **Extraction summary**: a working, in-app view of every extracted document (vendor, invoice
+  number, amounts, flag count) with totals, plus a **Download as Excel** button. This is not the
+  spec's actual Google Sheets purchase register (that's Step 6) — it's a review aid for now.
 
 Not yet built: email intake (needs a Google account connection), Google Drive filing, the
 maker/checker review and approval screens, vendor master, TDS/gross-up, payments, and the Google

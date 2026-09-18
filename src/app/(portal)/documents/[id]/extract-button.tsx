@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { runExtraction } from "./actions";
+import { runExtraction } from "../actions";
 
 export default function ExtractButton({ documentId }: { documentId: string }) {
   const router = useRouter();
