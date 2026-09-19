@@ -47,13 +47,18 @@ export async function runExtraction(documentId: string) {
 
   if (!user) throw new Error("Not signed in.");
 
-  const { data: document } = await supabase
-    .from("documents")
-    .select("*, clients ( name, gstin )")
-    .eq("id", documentId)
-    .single();
+  const { data: document } = await supabase.from("documents").select("*").eq("id", documentId).single();
 
   if (!document) throw new Error("Document not found.");
+
+  // Fetched explicitly by id rather than via an embedded join — cheap
+  // insurance against depending on Supabase's relationship-embedding
+  // resolving the way we expect in every code path.
+  const { data: client } = await supabase
+    .from("clients")
+    .select("name, gstin")
+    .eq("id", document.client_id)
+    .maybeSingle();
 
   const extension = document.original_filename.split(".").pop()?.toLowerCase() ?? "";
 
@@ -83,7 +88,7 @@ export async function runExtraction(documentId: string) {
 
   try {
     const fields = await extractInvoiceFields(bytes, extension);
-    const flags = computeValidationFlags(fields, document.clients, document);
+    const flags = computeValidationFlags(fields, client ?? null, document);
 
     const { error } = await supabase.from("extractions").insert({
       document_id: document.id,

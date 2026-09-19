@@ -30,11 +30,13 @@ function flag(check: string, severity: ValidationFlag["severity"], message: stri
  */
 export function computeValidationFlags(
   fields: ExtractedFields,
-  client: Pick<Client, "name" | "gstin">,
+  client: Pick<Client, "name" | "gstin"> | null,
   document: Pick<Document, "received_month">,
 ): ValidationFlag[] {
   const flags: ValidationFlag[] = [];
   const { vendor, billed_to, service, amounts, document: doc, notes } = fields;
+  const clientGstin = client?.gstin ?? null;
+  const clientName = client?.name ?? null;
 
   // GSTIN format
   if (vendor.gstin && !GSTIN_FORMAT.test(vendor.gstin)) {
@@ -52,8 +54,8 @@ export function computeValidationFlags(
   }
 
   // Tax type: vendor state vs client state, via GSTIN prefix
-  if (vendor.gstin && client.gstin && vendor.gstin.length >= 2 && client.gstin.length >= 2) {
-    const sameState = vendor.gstin.slice(0, 2) === client.gstin.slice(0, 2);
+  if (vendor.gstin && clientGstin && vendor.gstin.length >= 2 && clientGstin.length >= 2) {
+    const sameState = vendor.gstin.slice(0, 2) === clientGstin.slice(0, 2);
     const hasCgstSgst = (amounts.cgst ?? 0) > 0 || (amounts.sgst ?? 0) > 0;
     const hasIgst = (amounts.igst ?? 0) > 0;
 
@@ -101,11 +103,15 @@ export function computeValidationFlags(
   }
 
   // Billed-to matches the client
-  if (billed_to.name && !billed_to.name.toLowerCase().includes(client.name.toLowerCase().split(" ")[0].toLowerCase())) {
-    flags.push(flag("billed_to", "warning", `Document is billed to "${billed_to.name}", which doesn't obviously match client "${client.name}".`));
+  if (
+    billed_to.name &&
+    clientName &&
+    !billed_to.name.toLowerCase().includes(clientName.toLowerCase().split(" ")[0].toLowerCase())
+  ) {
+    flags.push(flag("billed_to", "warning", `Document is billed to "${billed_to.name}", which doesn't obviously match client "${clientName}".`));
   }
-  if (billed_to.gstin && client.gstin && billed_to.gstin !== client.gstin) {
-    flags.push(flag("billed_to", "error", `Billed-to GSTIN (${billed_to.gstin}) doesn't match the client's GSTIN (${client.gstin}).`));
+  if (billed_to.gstin && clientGstin && billed_to.gstin !== clientGstin) {
+    flags.push(flag("billed_to", "error", `Billed-to GSTIN (${billed_to.gstin}) doesn't match the client's GSTIN (${clientGstin}).`));
   }
 
   // Invoice completeness
