@@ -15,6 +15,10 @@ export interface ApprovedRow {
   ifsc: string | null;
   invoiceNumber: string | null;
   invoiceDate: string | null;
+  taxableValue: number | null;
+  cgst: number | null;
+  sgst: number | null;
+  igst: number | null;
   total: number | null;
   tdsCode: string | null;
   tdsRate: number | null;
@@ -73,6 +77,10 @@ export async function fetchApprovedRows(supabase: SupabaseClient): Promise<Appro
       ifsc: vendor?.ifsc ?? null,
       invoiceNumber: fields?.document?.invoice_number ?? null,
       invoiceDate: fields?.document?.invoice_date ?? null,
+      taxableValue: fields?.amounts?.taxable_value ?? null,
+      cgst: fields?.amounts?.cgst ?? null,
+      sgst: fields?.amounts?.sgst ?? null,
+      igst: fields?.amounts?.igst ?? null,
       total,
       tdsCode: row.tds_code as string | null,
       tdsRate: row.tds_rate as number | null,

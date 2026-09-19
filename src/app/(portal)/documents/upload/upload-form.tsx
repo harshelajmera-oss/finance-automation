@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { uploadDocument } from "./actions";
 import { getDocumentViewUrl } from "../actions";
 import type { Client } from "@/lib/supabase/types";
@@ -165,6 +166,10 @@ export default function UploadForm({ clients }: { clients: Client[] }) {
                   >
                     {viewingId === r.documentId ? "Opening…" : "View"}
                   </button>
+                  {" · "}
+                  <Link href={`/documents/${r.documentId}?manual=1`} className="underline hover:opacity-80">
+                    Enter details manually
+                  </Link>
                 </>
               )}
             </li>

@@ -47,6 +47,10 @@ export default async function ApprovedPage() {
               <th className="px-3 py-2 font-medium">Client</th>
               <th className="px-3 py-2 font-medium">Vendor</th>
               <th className="px-3 py-2 font-medium">Invoice</th>
+              <th className="px-3 py-2 text-right font-medium">Taxable</th>
+              <th className="px-3 py-2 text-right font-medium">CGST</th>
+              <th className="px-3 py-2 text-right font-medium">SGST</th>
+              <th className="px-3 py-2 text-right font-medium">IGST</th>
               <th className="px-3 py-2 text-right font-medium">Total</th>
               <th className="px-3 py-2 text-right font-medium">TDS</th>
               <th className="px-3 py-2 text-right font-medium">Net payable</th>
@@ -68,6 +72,10 @@ export default async function ApprovedPage() {
                   </Link>
                 </td>
                 <td className="px-3 py-2 text-slate-900">{r.invoiceNumber ?? "—"}</td>
+                <td className="px-3 py-2 text-right text-slate-900">{r.taxableValue?.toLocaleString() ?? "—"}</td>
+                <td className="px-3 py-2 text-right text-slate-900">{r.cgst?.toLocaleString() ?? "—"}</td>
+                <td className="px-3 py-2 text-right text-slate-900">{r.sgst?.toLocaleString() ?? "—"}</td>
+                <td className="px-3 py-2 text-right text-slate-900">{r.igst?.toLocaleString() ?? "—"}</td>
                 <td className="px-3 py-2 text-right text-slate-900">{r.total?.toLocaleString() ?? "—"}</td>
                 <td className="px-3 py-2 text-right text-slate-900">{r.tdsAmount?.toLocaleString() ?? "—"}</td>
                 <td className="px-3 py-2 text-right font-medium text-slate-900">
@@ -78,7 +86,7 @@ export default async function ApprovedPage() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-3 py-6 text-center text-slate-400">
+                <td colSpan={12} className="px-3 py-6 text-center text-slate-400">
                   Nothing approved yet.
                 </td>
               </tr>

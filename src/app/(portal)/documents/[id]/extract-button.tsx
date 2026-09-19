@@ -5,10 +5,16 @@ import { useRouter } from "next/navigation";
 import { runExtraction } from "../actions";
 import ManualEntryForm from "./manual-entry-form";
 
-export default function ExtractButton({ documentId }: { documentId: string }) {
+export default function ExtractButton({
+  documentId,
+  defaultManual = false,
+}: {
+  documentId: string;
+  defaultManual?: boolean;
+}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const [showManual, setShowManual] = useState(false);
+  const [showManual, setShowManual] = useState(defaultManual);
   const [isPending, startTransition] = useTransition();
 
   function handleClick() {

@@ -22,7 +22,8 @@ export default async function UploadPage() {
       <h1 className="mb-1 text-xl font-semibold text-slate-900">Upload a document</h1>
       <p className="mb-6 text-sm text-slate-500">
         For files received outside email — WhatsApp, printed receipts you&apos;ve scanned, and so
-        on.
+        on. If a file won&apos;t extract automatically, every upload gets an &quot;Enter details
+        manually&quot; link right away — no need to wait for extraction to fail first.
       </p>
 
       <UploadForm clients={clients ?? []} />

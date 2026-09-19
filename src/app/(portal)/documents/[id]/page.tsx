@@ -28,8 +28,15 @@ function statusBadge(status: string) {
   );
 }
 
-export default async function DocumentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function DocumentDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ manual?: string }>;
+}) {
   const { id } = await params;
+  const { manual } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -141,13 +148,15 @@ export default async function DocumentDetailPage({ params }: { params: Promise<{
         )}
       </div>
 
-      {document.extraction_status === "pending" && <ExtractButton documentId={document.id} />}
+      {document.extraction_status === "pending" && (
+        <ExtractButton documentId={document.id} defaultManual={manual === "1"} />
+      )}
 
       {extraction?.status === "failed" && (
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
           <p className="text-sm text-red-800">{extraction.error_message}</p>
           <div className="mt-3">
-            <ExtractButton documentId={document.id} />
+            <ExtractButton documentId={document.id} defaultManual={manual === "1"} />
           </div>
         </div>
       )}
