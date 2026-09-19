@@ -158,7 +158,16 @@ function cleanIfsc(raw: string | null): { value: string | null; wasCleaned: bool
 
 export async function parsePayoutSheet(bytes: Uint8Array): Promise<PayoutSheetParseResult> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(bytes as unknown as ArrayBuffer);
+  try {
+    await workbook.xlsx.load(bytes as unknown as ArrayBuffer);
+  } catch {
+    // The Excel-reading library this runs on can't parse cell comments/notes
+    // added by some tools (including Excel itself, and openpyxl) — a file
+    // that has any crashes the whole load with an unhelpful low-level error.
+    throw new Error(
+      "This file couldn't be read. If any cell has a comment or note attached, remove it (right-click the cell → Delete Comment) and re-save, then upload again.",
+    );
+  }
   const sheet = workbook.worksheets[0];
   if (!sheet) return { rows: [], skippedBlankRows: 0, missingColumns: Object.keys(COLUMN_MATCHERS) };
 
