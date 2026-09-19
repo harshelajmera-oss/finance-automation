@@ -5,6 +5,11 @@ import { updateVendor } from "../actions";
 import type { TdsTreatment, Vendor } from "@/lib/supabase/types";
 
 export default function EditVendorForm({ vendor }: { vendor: Vendor }) {
+  const [name, setName] = useState(vendor.name);
+  const [gstin, setGstin] = useState(vendor.gstin ?? "");
+  const [pan, setPan] = useState(vendor.pan ?? "");
+  const [state, setState] = useState(vendor.state ?? "");
+  const [udyamNumber, setUdyamNumber] = useState(vendor.udyam_number ?? "");
   const [tallyLedgerName, setTallyLedgerName] = useState(vendor.tally_ledger_name ?? "");
   const [defaultExpenseLedger, setDefaultExpenseLedger] = useState(vendor.default_expense_ledger ?? "");
   const [grossUp, setGrossUp] = useState(vendor.gross_up);
@@ -21,6 +26,11 @@ export default function EditVendorForm({ vendor }: { vendor: Vendor }) {
     startTransition(async () => {
       try {
         await updateVendor(vendor.id, {
+          name,
+          gstin,
+          pan,
+          state,
+          udyam_number: udyamNumber,
           tally_ledger_name: tallyLedgerName,
           default_expense_ledger: defaultExpenseLedger,
           gross_up: grossUp,
@@ -36,6 +46,55 @@ export default function EditVendorForm({ vendor }: { vendor: Vendor }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Name</label>
+          <input
+            type="text"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">State</label>
+          <input
+            type="text"
+            value={state}
+            onChange={(e) => setState(e.target.value)}
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">GSTIN</label>
+          <input
+            type="text"
+            value={gstin}
+            onChange={(e) => setGstin(e.target.value)}
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">PAN</label>
+          <input
+            type="text"
+            value={pan}
+            onChange={(e) => setPan(e.target.value)}
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="mb-1 block text-sm font-medium text-slate-700">Udyam number</label>
+          <input
+            type="text"
+            value={udyamNumber}
+            onChange={(e) => setUdyamNumber(e.target.value)}
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          />
+        </div>
+      </div>
+
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">Tally ledger name</label>
         <input

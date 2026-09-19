@@ -46,6 +46,20 @@ export default function ReviewSummary({
         )}
       </div>
 
+      {review.checker_edited_fields && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <h2 className="mb-2 text-sm font-semibold text-blue-900">Changes the checker made</h2>
+          <ul className="space-y-1">
+            {diffExtractedFields(review.reviewed_fields, review.checker_edited_fields).map((d) => (
+              <li key={d.path} className="text-sm text-blue-800">
+                <span className="font-mono text-xs text-blue-500">{d.path}</span>: {formatValue(d.aiValue)} →{" "}
+                <span className="font-medium">{formatValue(d.makerValue)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="mb-2 text-sm font-semibold text-slate-900">Submission</h2>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">

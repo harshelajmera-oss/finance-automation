@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { Profile, Vendor } from "@/lib/supabase/types";
+import type { Profile, Vendor, VendorBankChangeRequest } from "@/lib/supabase/types";
 import EditVendorForm from "./edit-vendor-form";
+import BankChange from "./bank-change";
 
 export default async function VendorDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -33,6 +34,13 @@ export default async function VendorDetailPage({ params }: { params: Promise<{ i
     );
   }
 
+  const { data: pendingRequest } = await supabase
+    .from("vendor_bank_change_requests")
+    .select("*")
+    .eq("vendor_id", id)
+    .eq("status", "pending")
+    .maybeSingle<VendorBankChangeRequest>();
+
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-10">
       <Link href="/admin/vendors" className="text-sm text-slate-500 hover:underline">
@@ -43,7 +51,10 @@ export default async function VendorDetailPage({ params }: { params: Promise<{ i
         GSTIN {vendor.gstin ?? "—"} · PAN {vendor.pan ?? "—"} · {vendor.entity_type ?? "Entity type unknown"}
       </p>
 
-      <EditVendorForm vendor={vendor} />
+      <div className="space-y-6">
+        <EditVendorForm vendor={vendor} />
+        <BankChange vendor={vendor} currentUserId={user.id} pendingRequest={pendingRequest ?? null} />
+      </div>
     </main>
   );
 }

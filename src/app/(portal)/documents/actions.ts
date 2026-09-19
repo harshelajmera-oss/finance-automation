@@ -192,11 +192,28 @@ export async function submitReview(documentId: string, payload: SubmitReviewPayl
   revalidatePath("/documents/checker-queue");
 }
 
-export async function decideReview(
+interface CheckerEdits {
+  reviewedFields: ExtractedFields;
+  expenseLedger: string;
+  tdsCode: string | null;
+  tdsRate: number | null;
+  tdsAmount: number | null;
+  grossUp: boolean;
+  paymentRoute: PaymentRoute;
+}
+
+/**
+ * A checker can now edit anything before deciding, not only reject back to
+ * the maker. The edit is stored on its own column (checker_edited_fields),
+ * separate from the maker's original reviewed_fields, so the record always
+ * shows who changed what rather than a silently merged final value.
+ */
+export async function checkerDecide(
   reviewId: string,
   status: "approved" | "rejected",
   comment: string,
   approveVendorId: string | null,
+  edits: CheckerEdits | null,
 ) {
   const supabase = await createClient();
   const {
@@ -215,12 +232,26 @@ export async function decideReview(
     throw new Error("A comment is required to reject.");
   }
 
-  const { data: review } = await supabase.from("reviews").select("document_id").eq("id", reviewId).single();
-
-  const { error } = await supabase
+  const { data: review } = await supabase
     .from("reviews")
-    .update({ status, checker_comment: comment.trim() || null })
-    .eq("id", reviewId);
+    .select("document_id, reviewed_fields")
+    .eq("id", reviewId)
+    .single();
+
+  const updatePayload: Record<string, unknown> = { status, checker_comment: comment.trim() || null };
+
+  if (edits) {
+    const changedFields = JSON.stringify(edits.reviewedFields) !== JSON.stringify(review?.reviewed_fields);
+    updatePayload.checker_edited_fields = changedFields ? edits.reviewedFields : null;
+    updatePayload.expense_ledger = edits.expenseLedger || null;
+    updatePayload.tds_code = edits.tdsCode;
+    updatePayload.tds_rate = edits.tdsRate;
+    updatePayload.tds_amount = edits.tdsAmount;
+    updatePayload.gross_up = edits.grossUp;
+    updatePayload.payment_route = edits.paymentRoute;
+  }
+
+  const { error } = await supabase.from("reviews").update(updatePayload).eq("id", reviewId);
 
   if (error) throw new Error(error.message);
 
@@ -229,5 +260,47 @@ export async function decideReview(
   }
 
   revalidatePath("/documents/checker-queue");
+  revalidatePath("/documents/approved");
   if (review) revalidatePath(`/documents/${review.document_id}`);
+}
+
+/**
+ * A manual fallback for when extraction fails or isn't wanted — the maker
+ * types the fields directly instead of Claude reading them. Stored as a
+ * regular completed extraction (model: "manual"), so it flows into the
+ * same review pipeline as an AI-read one, automatic checks included.
+ */
+export async function submitManualExtraction(documentId: string, fields: ExtractedFields) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Not signed in.");
+
+  const { data: document } = await supabase.from("documents").select("*").eq("id", documentId).single();
+
+  if (!document) throw new Error("Document not found.");
+
+  const { data: client } = await supabase
+    .from("clients")
+    .select("name, gstin")
+    .eq("id", document.client_id)
+    .maybeSingle();
+
+  const flags = computeValidationFlags(fields, client ?? null, document);
+
+  const { error } = await supabase.from("extractions").insert({
+    document_id: document.id,
+    org_id: document.org_id,
+    model: "manual",
+    status: "completed",
+    fields,
+    flags,
+  });
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/documents/${documentId}`);
+  revalidatePath("/documents");
 }

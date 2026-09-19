@@ -3,6 +3,19 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/supabase/types";
 
+async function countRows(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  table: string,
+  filters: Record<string, string>,
+) {
+  let query = supabase.from(table).select("id", { count: "exact", head: true });
+  for (const [key, value] of Object.entries(filters)) {
+    query = query.eq(key, value);
+  }
+  const { count } = await query;
+  return count ?? 0;
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient();
   const {
@@ -17,6 +30,12 @@ export default async function DashboardPage() {
     .eq("id", user.id)
     .single<Profile>();
 
+  const [pendingExtraction, awaitingReview, awaitingApproval] = await Promise.all([
+    countRows(supabase, "documents", { extraction_status: "pending" }),
+    countRows(supabase, "documents", { review_status: "not_submitted" }),
+    countRows(supabase, "documents", { review_status: "submitted" }),
+  ]);
+
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-10">
       <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
@@ -26,6 +45,21 @@ export default async function DashboardPage() {
         <p className="text-base font-medium capitalize text-slate-900">
           {profile?.role ?? "unknown"}
         </p>
+      </div>
+
+      <div className="mt-6 grid grid-cols-3 gap-3 text-center">
+        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-2xl font-semibold text-slate-900">{pendingExtraction}</p>
+          <p className="text-xs text-slate-500">Pending extraction</p>
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-2xl font-semibold text-slate-900">{awaitingReview}</p>
+          <p className="text-xs text-slate-500">Awaiting review</p>
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-2xl font-semibold text-slate-900">{awaitingApproval}</p>
+          <p className="text-xs text-slate-500">Awaiting approval</p>
+        </div>
       </div>
 
       <div className="mt-6 space-y-2">
@@ -41,62 +75,34 @@ export default async function DashboardPage() {
         >
           View documents →
         </Link>
-      </div>
-
-      {profile?.role === "checker" && (
-        <div className="mt-6 space-y-2">
+        <Link
+          href="/documents/approved"
+          className="block rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
+        >
+          View approved →
+        </Link>
+        {profile?.role === "maker" && (
+          <Link
+            href="/documents/my-attention"
+            className="block rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
+          >
+            Needs your attention →
+          </Link>
+        )}
+        {profile?.role === "checker" && (
           <Link
             href="/documents/checker-queue"
             className="block rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
           >
             Checker queue →
           </Link>
-        </div>
-      )}
-
-      {(profile?.role === "admin" || profile?.role === "checker") && (
-        <div className="mt-6 space-y-2">
-          <Link
-            href="/admin/vendors"
-            className="block rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
-          >
-            Manage vendors →
-          </Link>
-        </div>
-      )}
-
-      {profile?.role === "admin" && (
-        <div className="mt-6 space-y-2">
-          <Link
-            href="/admin/clients"
-            className="block rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
-          >
-            Manage clients →
-          </Link>
-          <Link
-            href="/admin/tds-codes"
-            className="block rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
-          >
-            Manage TDS codes →
-          </Link>
-          <Link
-            href="/admin/users"
-            className="block rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
-          >
-            Manage users and roles →
-          </Link>
-          <Link
-            href="/admin/audit-log"
-            className="block rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
-          >
-            View audit log →
-          </Link>
-        </div>
-      )}
+        )}
+      </div>
 
       <p className="mt-8 text-sm text-slate-400">
-        Payments, Google Sheets and Tally exports aren&apos;t built yet — email intake and Google
-        Drive filing are still to come too.
+        Everything else — clients, vendors, TDS codes, users, the audit log — is in the menu at the
+        top of every page now. Payments, Google Sheets and Tally exports aren&apos;t built yet —
+        email intake and Google Drive filing are still to come too.
       </p>
     </main>
   );

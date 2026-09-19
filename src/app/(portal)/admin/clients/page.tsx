@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Client, Profile } from "@/lib/supabase/types";
@@ -47,7 +48,11 @@ export default async function AdminClientsPage() {
           <tbody>
             {(clients ?? []).map((c) => (
               <tr key={c.id} className="border-b border-slate-100 last:border-0">
-                <td className="px-4 py-2 text-slate-900">{c.name}</td>
+                <td className="px-4 py-2 text-slate-900">
+                  <Link href={`/admin/clients/${c.id}`} className="underline hover:no-underline">
+                    {c.name}
+                  </Link>
+                </td>
                 <td className="px-4 py-2 font-mono text-slate-900">{c.code}</td>
                 <td className="px-4 py-2 text-slate-500">{c.gstin ?? "—"}</td>
               </tr>

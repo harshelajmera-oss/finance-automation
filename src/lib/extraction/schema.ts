@@ -58,6 +58,30 @@ export interface ExtractedFields {
   low_confidence_fields: string[];
 }
 
+/** A blank starting point for manual entry — same shape a completed extraction has. */
+export function emptyExtractedFields(): ExtractedFields {
+  return {
+    document: { type: null, invoice_number: null, invoice_date: null, due_date: null, irn: null, currency: null },
+    vendor: {
+      name: null,
+      address: null,
+      state: null,
+      gstin: null,
+      pan: null,
+      udyam_number: null,
+      bank_account: null,
+      ifsc: null,
+      upi_id: null,
+      email: null,
+    },
+    billed_to: { name: null, gstin: null, place_of_supply: null },
+    service: { description: null, sac_hsn: null, service_period_from: null, service_period_to: null, line_items: [] },
+    amounts: { taxable_value: null, cgst: null, sgst: null, igst: null, total: null, amount_already_paid: null },
+    notes: { tds_mentioned: false, reverse_charge_mentioned: false, credit_lines_against_earlier_invoices: null },
+    low_confidence_fields: [],
+  };
+}
+
 /** A Claude tool schema forcing the exact shape above back as valid JSON. */
 export const EXTRACTION_TOOL = {
   name: "record_extraction",

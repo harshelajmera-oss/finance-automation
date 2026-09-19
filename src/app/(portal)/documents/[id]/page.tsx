@@ -7,7 +7,7 @@ import ViewDocumentButton from "../view-document-button";
 import ExtractButton from "./extract-button";
 import ReviewForm from "./review-form";
 import ReviewSummary from "./review-summary";
-import CheckerDecision from "./checker-decision";
+import CheckerEditForm from "./checker-edit-form";
 
 type DocumentRow = Document & { clients: Pick<Client, "name" | "code"> | null };
 
@@ -90,6 +90,9 @@ export default async function DocumentDetailPage({ params }: { params: Promise<{
   const needsReviewForm =
     aiFields !== null && role === "maker" && (document.review_status === "not_submitted" || document.review_status === "rejected");
 
+  const canCheckerDecide =
+    role === "checker" && latestReview?.status === "submitted" && latestReview.submitted_by !== user.id;
+
   let vendorMatch: Vendor | null = null;
   let possibleNameMatches: Vendor[] = [];
   let tdsCodes: TdsCode[] = [];
@@ -98,7 +101,9 @@ export default async function DocumentDetailPage({ params }: { params: Promise<{
     const match = await findVendorMatch(supabase, document.org_id, aiFields.vendor.gstin, aiFields.vendor.pan, aiFields.vendor.name);
     vendorMatch = match.vendor;
     possibleNameMatches = match.possibleNameMatches;
+  }
 
+  if (needsReviewForm || canCheckerDecide) {
     const { data: codes } = await supabase
       .from("tds_codes")
       .select("*")
@@ -165,9 +170,12 @@ export default async function DocumentDetailPage({ params }: { params: Promise<{
             <div className="space-y-4">
               <ReviewSummary aiFields={aiFields} review={latestReview} vendor={reviewVendor} />
 
-              {role === "checker" && latestReview.status === "submitted" && latestReview.submitted_by !== user.id && (
-                <CheckerDecision
-                  reviewId={latestReview.id}
+              {canCheckerDecide && (
+                <CheckerEditForm
+                  review={latestReview}
+                  flags={flags}
+                  tdsCodes={tdsCodes}
+                  vendorName={reviewVendor?.name ?? null}
                   vendorPendingId={reviewVendor && !reviewVendor.is_approved ? reviewVendor.id : null}
                 />
               )}

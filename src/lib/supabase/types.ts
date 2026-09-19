@@ -102,6 +102,22 @@ export interface Review {
   status: ReviewDecisionStatus;
   checker_id: string | null;
   checker_comment: string | null;
+  checker_edited_fields: import("@/lib/extraction/schema").ExtractedFields | null;
+  decided_at: string | null;
+}
+
+export type BankChangeRequestStatus = "pending" | "confirmed" | "rejected";
+
+export interface VendorBankChangeRequest {
+  id: string;
+  org_id: string;
+  vendor_id: string;
+  proposed_bank_account: string | null;
+  proposed_ifsc: string | null;
+  requested_by: string;
+  requested_at: string;
+  status: BankChangeRequestStatus;
+  confirmed_by: string | null;
   decided_at: string | null;
 }
 

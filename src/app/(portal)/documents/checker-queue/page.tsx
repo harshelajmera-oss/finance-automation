@@ -37,7 +37,17 @@ export default async function CheckerQueuePage() {
 
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
-      <h1 className="mb-1 text-xl font-semibold text-slate-900">Checker queue</h1>
+      <div className="mb-1 flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-slate-900">Checker queue</h1>
+        {/* A real file download, not a page — Link would try to client-route it. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+        <a
+          href="/documents/checker-queue/export"
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        >
+          Download as Excel
+        </a>
+      </div>
       <p className="mb-6 text-sm text-slate-500">
         Everything waiting on your decision, oldest first. Open one to see what changed from the AI&apos;s
         original read, then approve or reject with a comment.

@@ -43,3 +43,26 @@ export async function addClient(name: string, code: string, gstin: string) {
 
   revalidatePath("/admin/clients");
 }
+
+export async function updateClient(clientId: string, name: string, code: string, gstin: string) {
+  const { supabase } = await requireAdmin();
+
+  const { error } = await supabase
+    .from("clients")
+    .update({
+      name: name.trim(),
+      code: code.trim().toUpperCase(),
+      gstin: gstin.trim() || null,
+    })
+    .eq("id", clientId);
+
+  if (error) {
+    if (error.code === "23505") {
+      throw new Error(`A client with the code "${code.trim().toUpperCase()}" already exists.`);
+    }
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/admin/clients");
+  revalidatePath(`/admin/clients/${clientId}`);
+}
