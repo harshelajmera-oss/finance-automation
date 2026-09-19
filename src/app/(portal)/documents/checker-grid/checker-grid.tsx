@@ -25,6 +25,7 @@ export interface CheckerGridRow {
   grossUp: boolean;
   paymentRoute: PaymentRoute;
   overrideReason: string | null;
+  submittedAt: string;
 }
 
 interface RowState {

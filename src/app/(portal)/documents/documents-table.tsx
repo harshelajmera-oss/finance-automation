@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { runExtraction } from "./actions";
 import ViewDocumentButton from "./view-document-button";
 import { formatDateTime } from "@/lib/format";
-import type { Client, Document } from "@/lib/supabase/types";
+import type { Client, Document, UserRole } from "@/lib/supabase/types";
 
 type DocumentRow = Document & { clients: Pick<Client, "name" | "code"> | null };
 
@@ -42,7 +42,7 @@ function ReviewBadge({ status }: { status: Document["review_status"] }) {
   );
 }
 
-export default function DocumentsTable({ documents }: { documents: DocumentRow[] }) {
+export default function DocumentsTable({ documents, role }: { documents: DocumentRow[]; role?: UserRole }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
@@ -213,7 +213,16 @@ export default function DocumentsTable({ documents }: { documents: DocumentRow[]
                   <ReviewBadge status={d.review_status} />
                 </td>
                 <td className="px-4 py-2">
-                  <ViewDocumentButton documentId={d.id} />
+                  <div className="flex items-center gap-2">
+                    <ViewDocumentButton documentId={d.id} />
+                    {role === "maker" &&
+                      d.extraction_status === "completed" &&
+                      (d.review_status === "not_submitted" || d.review_status === "rejected") && (
+                        <Link href={`/documents/${d.id}`} className="text-slate-900 underline hover:no-underline">
+                          Review
+                        </Link>
+                      )}
+                  </div>
                 </td>
               </tr>
             ))}
