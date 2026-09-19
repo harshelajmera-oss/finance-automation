@@ -194,6 +194,11 @@ export default function DocumentsTable({ documents, role }: { documents: Documen
                       Payout row
                     </span>
                   )}
+                  {d.source === "manual_no_file" && (
+                    <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                      No file
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-2">
                   {d.status === "duplicate" ? (
