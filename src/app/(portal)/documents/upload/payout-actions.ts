@@ -113,11 +113,17 @@ export async function uploadPayoutSheet(formData: FormData): Promise<PayoutUploa
     const fields = emptyExtractedFields();
     fields.vendor.name = row.payeeName;
     fields.vendor.pan = row.pan;
+    fields.vendor.gstin = row.gstin;
     fields.vendor.address = row.address;
     fields.vendor.bank_account = row.bankAccount;
     fields.vendor.ifsc = row.ifsc;
     fields.vendor.email = row.email;
+    fields.amounts.taxable_value = row.taxableValue;
+    fields.amounts.cgst = row.cgst;
+    fields.amounts.sgst = row.sgst;
+    fields.amounts.igst = row.igst;
     fields.amounts.total = row.gross;
+    fields.amounts.amount_already_paid = row.amountAlreadyPaid;
     fields.payout = {
       gross: row.gross,
       net: row.net,
@@ -125,6 +131,7 @@ export async function uploadPayoutSheet(formData: FormData): Promise<PayoutUploa
       tds_rate_percent: row.tdsRatePercent,
       bank_account_name: row.bankAccountName,
       source_row_label: row.rowLabel,
+      is_gross_up: row.isGrossUp,
     };
 
     const documentId = crypto.randomUUID();

@@ -110,7 +110,11 @@ The build sequence has six steps.
   spec's payment-batch rule. A row whose bank account was stored as a number (risking a lost leading
   zero or scientific notation) is flagged for the maker to verify against the original file rather
   than silently trusted. The physical sheet is stored once (`payout_batches`); re-uploading the
-  exact same file is refused rather than double-importing every row.
+  exact same file is refused rather than double-importing every row. A row can optionally carry
+  GSTIN + Taxable Value + CGST/SGST/IGST columns (for a GST-registered payee — a firm or company,
+  not an individual mentor) and an Advance column (netted off the payable); when those are present,
+  the row is treated as an ordinary invoiced amount rather than gross-up, and TDS is calculated on
+  the taxable value rather than the GST-inclusive total, matching how a regular invoice is handled.
 - A **Review grid** (maker) and **Approve grid** (checker): a wide, spreadsheet-style table showing
   every document ready for review/approval at once — vendor, GSTIN, PAN, billed-to, nature of
   service, amount, IGST/CGST/SGST, bank account, IFSC, gross-up, TDS code/rate/amount, and payment

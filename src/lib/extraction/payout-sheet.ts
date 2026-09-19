@@ -7,6 +7,7 @@ export interface PayoutRow {
   rowLabel: string;
   payeeName: string | null;
   pan: string | null;
+  gstin: string | null;
   email: string | null;
   address: string | null;
   bankAccountName: string | null;
@@ -15,6 +16,13 @@ export interface PayoutRow {
   bankName: string | null;
   branch: string | null;
   ifsc: string | null;
+  taxableValue: number | null;
+  cgst: number | null;
+  sgst: number | null;
+  igst: number | null;
+  amountAlreadyPaid: number | null;
+  /** False when GST columns were given — that's an ordinary invoiced amount, not a gross-up scenario. */
+  isGrossUp: boolean;
   gross: number | null;
   net: number | null;
   tds: number | null;
@@ -31,7 +39,10 @@ export interface PayoutSheetParseResult {
 
 // Column headers vary slightly sheet to sheet — matched by a substring
 // that's been stable across every sample seen so far, not an exact string.
-const COLUMN_MATCHERS: Record<string, string[]> = {
+// Required columns are flagged when missing; optional ones (GST, advance)
+// are quietly left blank for sheets that don't carry them — most payout
+// sheets are individuals below the GST threshold.
+const REQUIRED_COLUMN_MATCHERS: Record<string, string[]> = {
   email: ["email"],
   payeeName: ["name as it appears in pan", "name as per pan"],
   pan: ["pan number", "pan no"],
@@ -45,6 +56,17 @@ const COLUMN_MATCHERS: Record<string, string[]> = {
   tdsDeducted: ["tds deducted", "tds amount"],
   grossAmount: ["gross amount"],
 };
+
+const OPTIONAL_COLUMN_MATCHERS: Record<string, string[]> = {
+  gstin: ["gstin"],
+  taxableValue: ["taxable value", "taxable amount"],
+  cgst: ["cgst"],
+  sgst: ["sgst"],
+  igst: ["igst"],
+  advance: ["advance", "already paid"],
+};
+
+const COLUMN_MATCHERS: Record<string, string[]> = { ...REQUIRED_COLUMN_MATCHERS, ...OPTIONAL_COLUMN_MATCHERS };
 
 const TDS_TOLERANCE_RUPEES = 2;
 
@@ -151,7 +173,7 @@ export async function parsePayoutSheet(bytes: Uint8Array): Promise<PayoutSheetPa
     }
   });
 
-  const missingColumns = Object.keys(COLUMN_MATCHERS).filter(
+  const missingColumns = Object.keys(REQUIRED_COLUMN_MATCHERS).filter(
     (k) => columnIndex[k as keyof typeof COLUMN_MATCHERS] === undefined,
   );
 
@@ -208,43 +230,68 @@ export async function parsePayoutSheet(bytes: Uint8Array): Promise<PayoutSheetPa
     const amountPaidCell = get("amountPaid");
     const grossAmountCell = get("grossAmount");
     const tdsDeductedCell = get("tdsDeducted");
+    const gstinCell = get("gstin");
+    const taxableValueCell = get("taxableValue");
+    const cgstCell = get("cgst");
+    const sgstCell = get("sgst");
+    const igstCell = get("igst");
+    const advanceCell = get("advance");
 
     const amountPaid = amountPaidCell ? cellNumber(amountPaidCell) : { value: null, suspect: false };
     const grossAmountField = grossAmountCell ? cellNumber(grossAmountCell) : { value: null, suspect: false };
     const tdsDeducted = tdsDeductedCell ? cellNumber(tdsDeductedCell) : { value: null, suspect: false };
+    const gstin = gstinCell ? (cellText(gstinCell) ?? "").toUpperCase() || null : null;
+    const taxableValue = taxableValueCell ? cellNumber(taxableValueCell).value : null;
+    const cgst = cgstCell ? cellNumber(cgstCell).value : null;
+    const sgst = sgstCell ? cellNumber(sgstCell).value : null;
+    const igst = igstCell ? cellNumber(igstCell).value : null;
+    const amountAlreadyPaid = advanceCell ? cellNumber(advanceCell).value : null;
 
-    // Column headers can't be trusted to say which of "Amount Paid" and
-    // "Gross Amount" is actually the gross vs. the net figure — real sample
-    // sheets have used both conventions. The larger of the two, when both
-    // are present, is the gross (net is always <= gross once TDS is
-    // deducted); the smaller is the net actually paid.
-    const candidates = [amountPaid.value, grossAmountField.value].filter((n): n is number => n !== null);
+    // A GST-registered payee (a firm or company, not an individual mentor)
+    // gives a taxable value and GST breakup directly — that's an ordinary
+    // invoiced amount, not a gross-up scenario, so it's handled separately
+    // from the Amount Paid/Gross Amount reconciliation below.
+    const isGrossUp = taxableValue === null;
     let gross: number | null = null;
     let net: number | null = null;
+    let tds: number | null = null;
 
-    if (candidates.length === 2) {
-      gross = Math.max(candidates[0], candidates[1]);
-      net = Math.min(candidates[0], candidates[1]);
-    } else if (candidates.length === 1) {
-      gross = candidates[0];
-      net = tdsDeducted.value !== null ? candidates[0] - tdsDeducted.value : null;
-      flags.push({
-        check: "payout_single_amount_column",
-        severity: "warning",
-        message: `Only one of "Amount Paid" / "Gross Amount" is filled in for ${rowLabel} — treated ${candidates[0].toLocaleString()} as the gross amount. Verify against the sheet.`,
-      });
-    }
+    if (!isGrossUp) {
+      gross = taxableValue! + (cgst ?? 0) + (sgst ?? 0) + (igst ?? 0);
+      tds = tdsDeducted.value;
+      net = tds !== null ? gross - tds - (amountAlreadyPaid ?? 0) : null;
+    } else {
+      // Column headers can't be trusted to say which of "Amount Paid" and
+      // "Gross Amount" is actually the gross vs. the net figure — real
+      // sample sheets have used both conventions. The larger of the two,
+      // when both are present, is the gross (net is always <= gross once
+      // TDS is deducted); the smaller is the net actually paid.
+      const candidates = [amountPaid.value, grossAmountField.value].filter((n): n is number => n !== null);
 
-    let tds = tdsDeducted.value ?? (gross !== null && net !== null ? gross - net : null);
-
-    if (gross !== null && net !== null && tds !== null) {
-      const impliedTds = gross - net;
-      if (Math.abs(impliedTds - tds) > TDS_TOLERANCE_RUPEES) {
+      if (candidates.length === 2) {
+        gross = Math.max(candidates[0], candidates[1]);
+        net = Math.min(candidates[0], candidates[1]);
+      } else if (candidates.length === 1) {
+        gross = candidates[0];
+        net = tdsDeducted.value !== null ? candidates[0] - tdsDeducted.value : null;
         flags.push({
-          check: "payout_tax_arithmetic",
+          check: "payout_single_amount_column",
           severity: "warning",
-          message: `TDS on the sheet (₹${Math.round(tds).toLocaleString()}) for ${rowLabel} doesn't match gross minus net (₹${Math.round(impliedTds).toLocaleString()}) — verify manually.`,
+          message: `Only one of "Amount Paid" / "Gross Amount" is filled in for ${rowLabel} — treated ${candidates[0].toLocaleString()} as the gross amount. Verify against the sheet.`,
         });
+      }
+
+      tds = tdsDeducted.value ?? (gross !== null && net !== null ? gross - net : null);
+
+      if (gross !== null && net !== null && tds !== null) {
+        const impliedTds = gross - net;
+        if (Math.abs(impliedTds - tds) > TDS_TOLERANCE_RUPEES) {
+          flags.push({
+            check: "payout_tax_arithmetic",
+            severity: "warning",
+            message: `TDS on the sheet (₹${Math.round(tds).toLocaleString()}) for ${rowLabel} doesn't match gross minus net (₹${Math.round(impliedTds).toLocaleString()}) — verify manually.`,
+          });
+        }
       }
     }
 
@@ -255,7 +302,11 @@ export async function parsePayoutSheet(bytes: Uint8Array): Promise<PayoutSheetPa
     net = net !== null ? Math.round(net) : null;
     tds = tds !== null ? Math.round(tds) : null;
 
-    const tdsRatePercent = gross && gross > 0 && tds !== null ? Math.round((tds / gross) * 1000) / 10 : null;
+    // TDS is on the taxable value, excluding GST, per the spec's own rule —
+    // for a gross-up row there's no separate taxable value, so the rate is
+    // worked out against the gross fee instead.
+    const tdsRateBase = isGrossUp ? gross : taxableValue;
+    const tdsRatePercent = tdsRateBase && tdsRateBase > 0 && tds !== null ? Math.round((tds / tdsRateBase) * 1000) / 10 : null;
 
     if (!pan) {
       flags.push({
@@ -287,6 +338,7 @@ export async function parsePayoutSheet(bytes: Uint8Array): Promise<PayoutSheetPa
       rowLabel,
       payeeName,
       pan,
+      gstin,
       email,
       address: (() => {
         const c = get("address");
@@ -307,6 +359,12 @@ export async function parsePayoutSheet(bytes: Uint8Array): Promise<PayoutSheetPa
         return c ? cellText(c) : null;
       })(),
       ifsc,
+      taxableValue,
+      cgst,
+      sgst,
+      igst,
+      amountAlreadyPaid,
+      isGrossUp,
       gross,
       net,
       tds,

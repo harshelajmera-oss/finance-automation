@@ -69,6 +69,8 @@ export interface ExtractedFields {
     tds_rate_percent: number | null;
     bank_account_name: string | null;
     source_row_label: string;
+    /** False for a GST-registered row (taxable value + GST given directly) — those aren't gross-up, they're an ordinary invoice. */
+    is_gross_up: boolean;
   } | null;
 }
 

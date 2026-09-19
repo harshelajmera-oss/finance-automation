@@ -41,7 +41,7 @@ export default function ReviewForm({
     vendorMatch?.last_tds_rate ?? payout?.tds_rate_percent ?? null,
   );
   const [tdsAmount, setTdsAmount] = useState<number | null>(payout?.tds ?? null);
-  const [grossUp, setGrossUp] = useState(vendorMatch?.gross_up ?? Boolean(payout));
+  const [grossUp, setGrossUp] = useState(vendorMatch?.gross_up ?? payout?.is_gross_up ?? false);
   const [netAmount, setNetAmount] = useState<number | null>(payout?.net ?? null);
   const [paymentRoute, setPaymentRoute] = useState<PaymentRoute>("portal");
   const [overrideReason, setOverrideReason] = useState("");

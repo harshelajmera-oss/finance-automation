@@ -244,7 +244,9 @@ export default function UploadForm({ clients }: { clients: Client[] }) {
         <p className="text-xs text-slate-400">
           An XLS or XLSX with many payees, one row each (mentor payouts and similar) — no invoices,
           not read like a single document. Every row is parsed and imported as its own item to
-          review.
+          review. If a payee is GST-registered, add GSTIN/Taxable Value/CGST/SGST/IGST columns for
+          that row — everyone else is treated as gross-up (agreed net amount, TDS computed
+          automatically). An &quot;Advance&quot; column, if present, is netted off the payable.
         </p>
         <input
           ref={payoutInputRef}

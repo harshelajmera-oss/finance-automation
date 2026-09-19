@@ -108,7 +108,7 @@ function initRowState(row: GridDocRow, tdsCodes: TdsCode[]): RowState {
     amountAlreadyPaid: row.fields.amounts.amount_already_paid,
     bankAccount: row.fields.vendor.bank_account ?? "",
     ifsc: row.fields.vendor.ifsc ?? "",
-    grossUp: vendorMatch?.gross_up ?? Boolean(payout),
+    grossUp: vendorMatch?.gross_up ?? payout?.is_gross_up ?? false,
     netAmount: payout?.net ?? null,
     tdsCode: vendorMatch?.last_tds_code ?? payoutCodeGuess?.code ?? "",
     tdsRate,
