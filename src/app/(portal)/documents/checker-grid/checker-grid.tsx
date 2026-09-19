@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { checkerDecide } from "../actions";
+import { checkerDecide, getDocumentViewUrl } from "../actions";
 import { computeGrossUp } from "@/lib/tds/gross-up";
 import { formatNumber } from "@/lib/format";
 import type { ExtractedFields } from "@/lib/extraction/schema";
@@ -13,6 +13,7 @@ export interface CheckerGridRow {
   reviewId: string;
   documentId: string;
   originalFilename: string;
+  hasFile: boolean;
   clientName: string;
   clientCode: string;
   clientGstin: string | null;
@@ -157,8 +158,17 @@ export default function CheckerGrid({ rows, tdsCodes }: { rows: CheckerGridRow[]
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [outcomes, setOutcomes] = useState<Outcome[] | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [viewingId, setViewingId] = useState<string | null>(null);
 
   const rowsById = useMemo(() => new Map(rows.map((r) => [r.reviewId, r])), [rows]);
+
+  function handleView(documentId: string) {
+    setViewingId(documentId);
+    getDocumentViewUrl(documentId)
+      .then((url) => window.open(url, "_blank", "noopener,noreferrer"))
+      .catch((err) => alert(err instanceof Error ? err.message : "Could not open that file."))
+      .finally(() => setViewingId(null));
+  }
 
   function rowState(id: string): RowState {
     const existing = states[id];
@@ -498,6 +508,16 @@ export default function CheckerGrid({ rows, tdsCodes }: { rows: CheckerGridRow[]
                   </Cell>
                   <td className="sticky right-0 z-10 border-l border-slate-200 bg-white px-2 py-1.5 align-top">
                     <div className="flex w-28 flex-col gap-1">
+                      {row.hasFile && (
+                        <button
+                          type="button"
+                          onClick={() => handleView(row.documentId)}
+                          disabled={viewingId === row.documentId}
+                          className="rounded border border-slate-300 px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                        >
+                          {viewingId === row.documentId ? "Opening…" : "View invoice"}
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => handleApproveOne(row)}

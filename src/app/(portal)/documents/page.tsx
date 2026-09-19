@@ -141,12 +141,10 @@ export default async function DocumentsPage({ searchParams }: { searchParams: Pr
           <label className="mb-1 block text-xs text-slate-500">Received to</label>
           <input type="date" name="receivedTo" defaultValue={params.receivedTo ?? ""} className="rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
         </div>
-        {profile?.role === "admin" && (
-          <label className="flex items-center gap-2 pb-1.5 text-sm text-slate-700">
-            <input type="checkbox" name="showArchived" value="1" defaultChecked={showArchived} />
-            Show archived
-          </label>
-        )}
+        <label className="flex items-center gap-2 pb-1.5 text-sm text-slate-700">
+          <input type="checkbox" name="showArchived" value="1" defaultChecked={showArchived} />
+          Show archived
+        </label>
         <button type="submit" className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800">
           Apply
         </button>

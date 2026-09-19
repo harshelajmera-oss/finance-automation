@@ -269,7 +269,7 @@ export default function DocumentsTable({
                   ) : (
                     <span>
                       {d.clients ? `${d.clients.name} (${d.clients.code})` : "—"}
-                      {role === "admin" && (
+                      {role && (
                         <button
                           type="button"
                           onClick={() => startEditClient(d.id, d.client_id)}
@@ -329,7 +329,7 @@ export default function DocumentsTable({
                           Review
                         </Link>
                       )}
-                    {role === "admin" &&
+                    {role &&
                       (d.archived_at ? (
                         <button
                           type="button"

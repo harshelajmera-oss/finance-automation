@@ -5,7 +5,11 @@ import type { Client, Document, Profile, Review, TdsCode, Vendor } from "@/lib/s
 import CheckerGrid, { type CheckerGridRow } from "./checker-grid";
 
 type ReviewRow = Review & {
-  documents: (Pick<Document, "id" | "original_filename"> & { clients: Pick<Client, "name" | "code" | "gstin"> | null }) | null;
+  documents:
+    | (Pick<Document, "id" | "original_filename" | "storage_path"> & {
+        clients: Pick<Client, "name" | "code" | "gstin"> | null;
+      })
+    | null;
   vendors: Vendor | null;
 };
 
@@ -38,7 +42,7 @@ export default async function CheckerGridPage({ searchParams }: { searchParams: 
   const [{ data: reviews }, { data: codes }] = await Promise.all([
     supabase
       .from("reviews")
-      .select("*, documents ( id, original_filename, clients ( name, code, gstin ) ), vendors ( * )")
+      .select("*, documents ( id, original_filename, storage_path, clients ( name, code, gstin ) ), vendors ( * )")
       .eq("status", "submitted")
       .order("submitted_at", { ascending: true })
       .returns<ReviewRow[]>(),
@@ -51,6 +55,7 @@ export default async function CheckerGridPage({ searchParams }: { searchParams: 
       reviewId: r.id,
       documentId: r.documents?.id ?? r.document_id,
       originalFilename: r.documents?.original_filename ?? "",
+      hasFile: Boolean(r.documents?.storage_path),
       clientName: r.documents?.clients?.name ?? "—",
       clientCode: r.documents?.clients?.code ?? "",
       clientGstin: r.documents?.clients?.gstin ?? null,

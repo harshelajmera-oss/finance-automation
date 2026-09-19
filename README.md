@@ -114,10 +114,11 @@ The build sequence has six steps.
 - A **Review grid** (maker) and **Approve grid** (checker): a wide, spreadsheet-style table showing
   every document ready for review/approval at once — vendor, GSTIN, PAN, billed-to, nature of
   service, amount, IGST/CGST/SGST, bank account, IFSC, gross-up, TDS code/rate/amount, and payment
-  route are all editable directly in the table, no need to open each document individually. Tick
-  several rows and submit or approve them together — this is where the spec's "bulk approve" for
-  flag-free items lives. Anything needing the full document view (line items, IRN, notes, or a
-  genuinely one-off fix) still has an "Open" link. This is also the natural home for bulk payout
+  route are all editable directly in the table, no need to open each document individually — the
+  Approve grid also has a one-click "View invoice" button so the checker can see the actual file
+  without leaving the grid. Tick several rows and submit or approve them together — this is where
+  the spec's "bulk approve" for flag-free items lives. Anything needing the full document view (line
+  items, IRN, notes, or a genuinely one-off fix) still has an "Open" link. This is also the natural home for bulk payout
   rows, which otherwise come in dozens at a time. A red-flagged row still needs an override reason
   before it can be submitted, same rule as the single-document screen. Rejecting stays one row at a
   time, since a rejection needs its own comment. The original single-document screen (Documents →
@@ -126,13 +127,15 @@ The build sequence has six steps.
   vendor charges one or the other, never both), and Total is computed live from Taxable value + GST
   while staying editable for a genuine rounding exception. TDS's "deduct at payment" calculation
   uses Taxable value as its base, matching the spec's own rule.
-- Documents can be **archived** by an admin (Documents list → "Archive") when one was uploaded by
-  mistake — wrong client, wrong file, a stray duplicate. Nothing is ever actually deleted: an
-  archived document just disappears from the normal lists (a "Show archived" filter brings it back)
-  while its row, file and every linked extraction/review stay in the database, restorable at any
-  time, with the archive/restore itself logged to the audit trail like everything else. An admin can
-  also correct a document filed under the wrong client (Documents list → "Edit" next to the client
-  name) — also logged, not silently overwritten.
+- Documents can be **archived** by any signed-in team member — maker, checker or admin (Documents
+  list → "Archive") — when one was uploaded by mistake — wrong client, wrong file, a stray
+  duplicate. Nothing is ever actually deleted: an archived document just disappears from the normal
+  lists (a "Show archived" filter brings it back) while its row, file and every linked
+  extraction/review stay in the database, restorable at any time, with the archive/restore itself
+  logged to the audit trail like everything else. The same goes for correcting a document filed
+  under the wrong client (Documents list → "Edit" next to the client name) — also logged, not
+  silently overwritten. Opening this up to every role, not just admins, matches the "checker can
+  edit anything" trust model already used elsewhere in this app.
 
 Not yet built: email intake (needs a Google account connection), Google Drive filing, payments, and
 the Google Sheets/Tally exports.
@@ -159,6 +162,8 @@ the Google Sheets/Tally exports.
   file_size nullable, so manual entry can start with no file at all.
 - `supabase/migrations/0009_document_archive_and_client_reassign.sql` — archive/restore and
   client-reassignment columns and the audit trigger for them.
+- `supabase/migrations/0010_document_archive_open_to_all_roles.sql` — opens archive/restore/
+  reassign up to any signed-in team member, not just admins.
   Run each migration file after the last, in order, the same way (paste into the Supabase SQL
   Editor, click Run).
 - `supabase/seed.sql` — creates the one organization row the firm's users belong to.

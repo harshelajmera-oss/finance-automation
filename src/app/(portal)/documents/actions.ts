@@ -317,14 +317,12 @@ export async function submitManualExtraction(documentId: string, fields: Extract
   revalidatePath("/documents/review-grid");
 }
 
-async function requireAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
+/** Archiving/editing a document is open to any signed-in team member — maker, checker or admin. */
+async function requireSignedIn(supabase: Awaited<ReturnType<typeof createClient>>) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Not signed in.");
-
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (!profile || profile.role !== "admin") throw new Error("Only an admin can do this.");
   return user;
 }
 
@@ -335,7 +333,7 @@ async function requireAdmin(supabase: Awaited<ReturnType<typeof createClient>>) 
  */
 export async function archiveDocument(documentId: string) {
   const supabase = await createClient();
-  const user = await requireAdmin(supabase);
+  const user = await requireSignedIn(supabase);
 
   const { error } = await supabase
     .from("documents")
@@ -349,7 +347,7 @@ export async function archiveDocument(documentId: string) {
 
 export async function restoreDocument(documentId: string) {
   const supabase = await createClient();
-  await requireAdmin(supabase);
+  await requireSignedIn(supabase);
 
   const { error } = await supabase
     .from("documents")
@@ -364,7 +362,7 @@ export async function restoreDocument(documentId: string) {
 /** Corrects a document filed under the wrong client — logged like any other change, not silently overwritten. */
 export async function reassignDocumentClient(documentId: string, clientId: string) {
   const supabase = await createClient();
-  await requireAdmin(supabase);
+  await requireSignedIn(supabase);
 
   const { error } = await supabase.from("documents").update({ client_id: clientId }).eq("id", documentId);
   if (error) throw new Error(error.message);
