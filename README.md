@@ -78,9 +78,11 @@ The build sequence has six steps.
   Approve, or reject with a required comment. A checker can never approve a document they submitted
   themselves — enforced in the database itself, not just the screen, matching the control rule from
   Step 1.
-- A **manual entry** fallback ("Enter details manually," next to "Extract fields") for when
-  extraction fails or isn't wanted — the same field-editing form, feeding the same review pipeline,
-  recorded as a manually-entered extraction rather than an AI-read one.
+- **Three ways to bring in a document**, side by side on the Upload page: upload an invoice/receipt
+  to be read automatically, **enter details manually with no file at all** (a document row with
+  nothing stored — for a phone call or a verbal agreement, not just a fallback after a failed
+  extraction), or upload a bulk payout sheet. Manual entry feeds the exact same review pipeline as
+  an AI-read document, just recorded as manually entered.
 - Client and vendor **edit screens**. Vendor identity fields (name, GSTIN, PAN, state, Udyam,
   ledger, TDS defaults) are an ordinary single-person edit. Bank account and IFSC are not — per the
   spec's own fraud-control rule, those go through a **propose → confirm** flow requiring a second
@@ -140,6 +142,10 @@ the Google Sheets/Tally exports.
   the bank-detail propose → confirm flow.
 - `supabase/migrations/0006_bulk_payout_sheets.sql` — the `payout_batches` table and the columns
   linking a document back to the sheet and row it came from.
+- `supabase/migrations/0007_approved_export_tracking.sql` — tracks what's already been downloaded
+  from the Approved list.
+- `supabase/migrations/0008_manual_documents_without_a_file.sql` — makes storage_path/file_hash/
+  file_size nullable, so manual entry can start with no file at all.
   Run each migration file after the last, in order, the same way (paste into the Supabase SQL
   Editor, click Run).
 - `supabase/seed.sql` — creates the one organization row the firm's users belong to.

@@ -7,7 +7,13 @@ import { EditableExtractedFields } from "./field-editors";
 import { emptyExtractedFields } from "@/lib/extraction/schema";
 import type { ExtractedFields } from "@/lib/extraction/schema";
 
-export default function ManualEntryForm({ documentId, onCancel }: { documentId: string; onCancel: () => void }) {
+export default function ManualEntryForm({
+  documentId,
+  onCancel,
+}: {
+  documentId: string;
+  onCancel?: () => void;
+}) {
   const router = useRouter();
   const [fields, setFields] = useState<ExtractedFields>(emptyExtractedFields());
   const [error, setError] = useState<string | null>(null);
@@ -45,13 +51,15 @@ export default function ManualEntryForm({ documentId, onCancel }: { documentId: 
         >
           {isPending ? "Saving…" : "Save details"}
         </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
-        >
-          Cancel
-        </button>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+        )}
       </div>
     </div>
   );

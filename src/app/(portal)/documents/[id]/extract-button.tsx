@@ -8,13 +8,15 @@ import ManualEntryForm from "./manual-entry-form";
 export default function ExtractButton({
   documentId,
   defaultManual = false,
+  hasFile = true,
 }: {
   documentId: string;
   defaultManual?: boolean;
+  hasFile?: boolean;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const [showManual, setShowManual] = useState(defaultManual);
+  const [showManual, setShowManual] = useState(defaultManual || !hasFile);
   const [isPending, startTransition] = useTransition();
 
   function handleClick() {
@@ -30,7 +32,7 @@ export default function ExtractButton({
   }
 
   if (showManual) {
-    return <ManualEntryForm documentId={documentId} onCancel={() => setShowManual(false)} />;
+    return <ManualEntryForm documentId={documentId} onCancel={hasFile ? () => setShowManual(false) : undefined} />;
   }
 
   return (

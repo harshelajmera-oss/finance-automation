@@ -31,9 +31,9 @@ export interface Document {
   uploaded_by: string | null;
   source: string;
   original_filename: string;
-  storage_path: string;
-  file_hash: string;
-  file_size: number;
+  storage_path: string | null;
+  file_hash: string | null;
+  file_size: number | null;
   received_at: string;
   fiscal_year: string;
   received_month: string;

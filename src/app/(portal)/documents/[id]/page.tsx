@@ -134,7 +134,7 @@ export default async function DocumentDetailPage({
             received {formatDate(document.received_at)}
           </p>
         </div>
-        <ViewDocumentButton documentId={document.id} />
+        {document.storage_path && <ViewDocumentButton documentId={document.id} />}
       </div>
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
@@ -150,14 +150,22 @@ export default async function DocumentDetailPage({
       </div>
 
       {document.extraction_status === "pending" && (
-        <ExtractButton documentId={document.id} defaultManual={manual === "1"} />
+        <ExtractButton
+          documentId={document.id}
+          defaultManual={manual === "1"}
+          hasFile={document.storage_path !== null}
+        />
       )}
 
       {extraction?.status === "failed" && (
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
           <p className="text-sm text-red-800">{extraction.error_message}</p>
           <div className="mt-3">
-            <ExtractButton documentId={document.id} defaultManual={manual === "1"} />
+            <ExtractButton
+              documentId={document.id}
+              defaultManual={manual === "1"}
+              hasFile={document.storage_path !== null}
+            />
           </div>
         </div>
       )}
@@ -216,7 +224,7 @@ export default async function DocumentDetailPage({
           )}
 
           <div className="mt-6">
-            <ExtractButton documentId={document.id} />
+            <ExtractButton documentId={document.id} hasFile={document.storage_path !== null} />
             <p className="mt-1 text-xs text-slate-400">
               Re-running replaces nothing — it adds a new attempt, and the one above stays on record.
             </p>

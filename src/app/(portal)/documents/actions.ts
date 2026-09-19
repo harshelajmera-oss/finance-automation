@@ -29,6 +29,7 @@ export async function getDocumentViewUrl(documentId: string) {
     .single();
 
   if (!document) throw new Error("Document not found.");
+  if (!document.storage_path) throw new Error("This was entered manually — there's no file attached to view.");
 
   const { data, error } = await supabase.storage
     .from("documents")
@@ -50,6 +51,7 @@ export async function runExtraction(documentId: string) {
   const { data: document } = await supabase.from("documents").select("*").eq("id", documentId).single();
 
   if (!document) throw new Error("Document not found.");
+  if (!document.storage_path) throw new Error("This was entered manually — there's no file to extract from.");
 
   // Fetched explicitly by id rather than via an embedded join — cheap
   // insurance against depending on Supabase's relationship-embedding

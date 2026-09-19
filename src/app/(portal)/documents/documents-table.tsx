@@ -214,7 +214,7 @@ export default function DocumentsTable({ documents, role }: { documents: Documen
                 </td>
                 <td className="px-4 py-2">
                   <div className="flex items-center gap-2">
-                    <ViewDocumentButton documentId={d.id} />
+                    {d.storage_path && <ViewDocumentButton documentId={d.id} />}
                     {role === "maker" &&
                       d.extraction_status === "completed" &&
                       (d.review_status === "not_submitted" || d.review_status === "rejected") && (

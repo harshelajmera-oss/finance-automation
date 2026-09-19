@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { fiscalYearFor, receivedMonthFor, sanitizeFilename } from "@/lib/documents/fiscal-year";
+import { formatDateTime } from "@/lib/format";
 
 const ALLOWED_EXTENSIONS = ["pdf", "jpg", "jpeg", "png", "xls", "xlsx"];
 const MAX_FILE_BYTES = 25 * 1024 * 1024; // 25 MB
@@ -97,4 +98,55 @@ export async function uploadDocument(formData: FormData) {
   revalidatePath("/documents");
 
   return { documentId, isDuplicate: Boolean(existingMatch) };
+}
+
+/**
+ * Manual entry with nothing to upload — for when there's no file at all
+ * (a phone call, a verbal agreement) or the maker just doesn't want to
+ * bother scanning something first. Creates a bare document row with no
+ * stored file, so there's nowhere to run extraction — the caller sends the
+ * maker straight to the manual entry form.
+ */
+export async function createManualDocument(clientId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Not signed in.");
+
+  const { data: profile } = await supabase.from("profiles").select("org_id").eq("id", user.id).single();
+  if (!profile) throw new Error("No profile found for this account.");
+
+  if (!clientId) throw new Error("Choose a client first.");
+
+  const { data: client } = await supabase.from("clients").select("id, code").eq("id", clientId).single();
+  if (!client) throw new Error("Client not found.");
+
+  const receivedAt = new Date();
+  const fiscalYear = fiscalYearFor(receivedAt);
+  const receivedMonth = receivedMonthFor(receivedAt);
+  const documentId = crypto.randomUUID();
+
+  const { error } = await supabase.from("documents").insert({
+    id: documentId,
+    org_id: profile.org_id,
+    client_id: client.id,
+    uploaded_by: user.id,
+    source: "manual_no_file",
+    original_filename: `Manual entry — ${formatDateTime(receivedAt)}`,
+    storage_path: null,
+    file_hash: null,
+    file_size: null,
+    received_at: receivedAt.toISOString(),
+    fiscal_year: fiscalYear,
+    received_month: receivedMonth,
+    status: "received",
+  });
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/documents");
+
+  return { documentId };
 }
