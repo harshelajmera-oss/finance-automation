@@ -316,3 +316,60 @@ export async function submitManualExtraction(documentId: string, fields: Extract
   revalidatePath("/documents");
   revalidatePath("/documents/review-grid");
 }
+
+async function requireAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in.");
+
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (!profile || profile.role !== "admin") throw new Error("Only an admin can do this.");
+  return user;
+}
+
+/**
+ * Nothing in this app is ever hard-deleted — a wrongly-uploaded document is
+ * archived instead: hidden from the normal lists, but the row, its file and
+ * every linked extraction/review stay in the database and can be restored.
+ */
+export async function archiveDocument(documentId: string) {
+  const supabase = await createClient();
+  const user = await requireAdmin(supabase);
+
+  const { error } = await supabase
+    .from("documents")
+    .update({ archived_at: new Date().toISOString(), archived_by: user.id })
+    .eq("id", documentId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/documents");
+  revalidatePath("/documents/review-grid");
+}
+
+export async function restoreDocument(documentId: string) {
+  const supabase = await createClient();
+  await requireAdmin(supabase);
+
+  const { error } = await supabase
+    .from("documents")
+    .update({ archived_at: null, archived_by: null })
+    .eq("id", documentId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/documents");
+  revalidatePath("/documents/review-grid");
+}
+
+/** Corrects a document filed under the wrong client — logged like any other change, not silently overwritten. */
+export async function reassignDocumentClient(documentId: string, clientId: string) {
+  const supabase = await createClient();
+  await requireAdmin(supabase);
+
+  const { error } = await supabase.from("documents").update({ client_id: clientId }).eq("id", documentId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/documents");
+  revalidatePath(`/documents/${documentId}`);
+  revalidatePath("/documents/review-grid");
+}

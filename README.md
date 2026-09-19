@@ -121,7 +121,18 @@ The build sequence has six steps.
   rows, which otherwise come in dozens at a time. A red-flagged row still needs an override reason
   before it can be submitted, same rule as the single-document screen. Rejecting stays one row at a
   time, since a rejection needs its own comment. The original single-document screen (Documents →
-  click a file) still exists side by side, unchanged, for anyone who prefers it.
+  click a file) still exists side by side, unchanged, for anyone who prefers it. GST fields
+  auto-fill for you — CGST and SGST always mirror each other and clear IGST (and vice versa, since a
+  vendor charges one or the other, never both), and Total is computed live from Taxable value + GST
+  while staying editable for a genuine rounding exception. TDS's "deduct at payment" calculation
+  uses Taxable value as its base, matching the spec's own rule.
+- Documents can be **archived** by an admin (Documents list → "Archive") when one was uploaded by
+  mistake — wrong client, wrong file, a stray duplicate. Nothing is ever actually deleted: an
+  archived document just disappears from the normal lists (a "Show archived" filter brings it back)
+  while its row, file and every linked extraction/review stay in the database, restorable at any
+  time, with the archive/restore itself logged to the audit trail like everything else. An admin can
+  also correct a document filed under the wrong client (Documents list → "Edit" next to the client
+  name) — also logged, not silently overwritten.
 
 Not yet built: email intake (needs a Google account connection), Google Drive filing, payments, and
 the Google Sheets/Tally exports.
@@ -146,6 +157,8 @@ the Google Sheets/Tally exports.
   from the Approved list.
 - `supabase/migrations/0008_manual_documents_without_a_file.sql` — makes storage_path/file_hash/
   file_size nullable, so manual entry can start with no file at all.
+- `supabase/migrations/0009_document_archive_and_client_reassign.sql` — archive/restore and
+  client-reassignment columns and the audit trigger for them.
   Run each migration file after the last, in order, the same way (paste into the Supabase SQL
   Editor, click Run).
 - `supabase/seed.sql` — creates the one organization row the firm's users belong to.

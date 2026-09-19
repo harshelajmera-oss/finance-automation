@@ -41,6 +41,8 @@ export interface Document {
   duplicate_of: string | null;
   extraction_status: ExtractionStatus;
   review_status: ReviewStatus;
+  archived_at: string | null;
+  archived_by: string | null;
   created_at: string;
 }
 

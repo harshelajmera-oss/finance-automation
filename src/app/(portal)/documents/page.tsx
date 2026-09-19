@@ -12,6 +12,7 @@ interface SearchParams {
   reviewStatus?: string;
   receivedFrom?: string;
   receivedTo?: string;
+  showArchived?: string;
 }
 
 function inRange(dateStr: string, from?: string, to?: string): boolean {
@@ -41,8 +42,10 @@ export default async function DocumentsPage({ searchParams }: { searchParams: Pr
     supabase.from("clients").select("*").order("name", { ascending: true }).returns<Client[]>(),
   ]);
 
+  const showArchived = params.showArchived === "1";
   const allDocs = documents ?? [];
   const rows = allDocs.filter((d) => {
+    if (!showArchived && d.archived_at) return false;
     if (params.clientId && d.client_id !== params.clientId) return false;
     if (params.extractionStatus && d.extraction_status !== params.extractionStatus) return false;
     if (params.reviewStatus && d.review_status !== params.reviewStatus) return false;
@@ -51,7 +54,7 @@ export default async function DocumentsPage({ searchParams }: { searchParams: Pr
   });
 
   const filterActive =
-    params.clientId || params.extractionStatus || params.reviewStatus || params.receivedFrom || params.receivedTo;
+    params.clientId || params.extractionStatus || params.reviewStatus || params.receivedFrom || params.receivedTo || showArchived;
 
   const query = new URLSearchParams();
   if (params.clientId) query.set("clientId", params.clientId);
@@ -59,6 +62,7 @@ export default async function DocumentsPage({ searchParams }: { searchParams: Pr
   if (params.reviewStatus) query.set("reviewStatus", params.reviewStatus);
   if (params.receivedFrom) query.set("receivedFrom", params.receivedFrom);
   if (params.receivedTo) query.set("receivedTo", params.receivedTo);
+  if (showArchived) query.set("showArchived", "1");
   const queryString = query.toString();
 
   return (
@@ -137,6 +141,12 @@ export default async function DocumentsPage({ searchParams }: { searchParams: Pr
           <label className="mb-1 block text-xs text-slate-500">Received to</label>
           <input type="date" name="receivedTo" defaultValue={params.receivedTo ?? ""} className="rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
         </div>
+        {profile?.role === "admin" && (
+          <label className="flex items-center gap-2 pb-1.5 text-sm text-slate-700">
+            <input type="checkbox" name="showArchived" value="1" defaultChecked={showArchived} />
+            Show archived
+          </label>
+        )}
         <button type="submit" className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800">
           Apply
         </button>
@@ -154,7 +164,7 @@ export default async function DocumentsPage({ searchParams }: { searchParams: Pr
         </a>
       </form>
 
-      <DocumentsTable documents={rows} role={profile?.role} />
+      <DocumentsTable documents={rows} role={profile?.role} clients={clients ?? []} />
     </main>
   );
 }

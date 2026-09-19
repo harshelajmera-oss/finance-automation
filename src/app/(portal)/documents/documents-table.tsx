@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { runExtraction } from "./actions";
+import { runExtraction, archiveDocument, restoreDocument, reassignDocumentClient } from "./actions";
 import ViewDocumentButton from "./view-document-button";
 import { formatDateTime } from "@/lib/format";
 import type { Client, Document, UserRole } from "@/lib/supabase/types";
@@ -42,12 +42,66 @@ function ReviewBadge({ status }: { status: Document["review_status"] }) {
   );
 }
 
-export default function DocumentsTable({ documents, role }: { documents: DocumentRow[]; role?: UserRole }) {
+export default function DocumentsTable({
+  documents,
+  role,
+  clients,
+}: {
+  documents: DocumentRow[];
+  role?: UserRole;
+  clients: Client[];
+}) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const [results, setResults] = useState<ExtractResult[] | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [editingClientFor, setEditingClientFor] = useState<string | null>(null);
+  const [editClientValue, setEditClientValue] = useState("");
+  const [rowError, setRowError] = useState<{ id: string; message: string } | null>(null);
+  const [isRowPending, startRowTransition] = useTransition();
+
+  function handleArchive(id: string) {
+    setRowError(null);
+    startRowTransition(async () => {
+      try {
+        await archiveDocument(id);
+        router.refresh();
+      } catch (err) {
+        setRowError({ id, message: err instanceof Error ? err.message : "Could not archive." });
+      }
+    });
+  }
+
+  function handleRestore(id: string) {
+    setRowError(null);
+    startRowTransition(async () => {
+      try {
+        await restoreDocument(id);
+        router.refresh();
+      } catch (err) {
+        setRowError({ id, message: err instanceof Error ? err.message : "Could not restore." });
+      }
+    });
+  }
+
+  function startEditClient(id: string, currentClientId: string) {
+    setEditingClientFor(id);
+    setEditClientValue(currentClientId);
+    setRowError(null);
+  }
+
+  function saveEditClient(id: string) {
+    startRowTransition(async () => {
+      try {
+        await reassignDocumentClient(id, editClientValue);
+        setEditingClientFor(null);
+        router.refresh();
+      } catch (err) {
+        setRowError({ id, message: err instanceof Error ? err.message : "Could not reassign." });
+      }
+    });
+  }
 
   const pendingIds = useMemo(
     () => documents.filter((d) => d.extraction_status === "pending").map((d) => d.id),
@@ -170,7 +224,7 @@ export default function DocumentsTable({ documents, role }: { documents: Documen
           </thead>
           <tbody>
             {documents.map((d) => (
-              <tr key={d.id} className="border-b border-slate-100 last:border-0">
+              <tr key={d.id} className={`border-b border-slate-100 last:border-0 ${d.archived_at ? "opacity-50" : ""}`}>
                 <td className="px-4 py-2">
                   <input
                     type="checkbox"
@@ -183,7 +237,49 @@ export default function DocumentsTable({ documents, role }: { documents: Documen
                   {formatDateTime(d.received_at)}
                 </td>
                 <td className="px-4 py-2 text-slate-900">
-                  {d.clients ? `${d.clients.name} (${d.clients.code})` : "—"}
+                  {editingClientFor === d.id ? (
+                    <div className="flex items-center gap-1">
+                      <select
+                        value={editClientValue}
+                        onChange={(e) => setEditClientValue(e.target.value)}
+                        className="rounded border border-slate-300 px-1.5 py-1 text-sm"
+                      >
+                        {clients.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} ({c.code})
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => saveEditClient(d.id)}
+                        disabled={isRowPending}
+                        className="rounded bg-slate-900 px-2 py-1 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingClientFor(null)}
+                        className="text-xs text-slate-500 underline hover:text-slate-900"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <span>
+                      {d.clients ? `${d.clients.name} (${d.clients.code})` : "—"}
+                      {role === "admin" && (
+                        <button
+                          type="button"
+                          onClick={() => startEditClient(d.id, d.client_id)}
+                          className="ml-2 text-xs text-slate-400 underline hover:text-slate-900"
+                        >
+                          Edit
+                        </button>
+                      )}
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-2">
                   <Link href={`/documents/${d.id}`} className="text-slate-900 underline hover:no-underline">
@@ -199,6 +295,12 @@ export default function DocumentsTable({ documents, role }: { documents: Documen
                       No file
                     </span>
                   )}
+                  {d.archived_at && (
+                    <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
+                      Archived
+                    </span>
+                  )}
+                  {rowError?.id === d.id && <span className="ml-2 text-xs text-red-600">{rowError.message}</span>}
                 </td>
                 <td className="px-4 py-2">
                   {d.status === "duplicate" ? (
@@ -227,6 +329,26 @@ export default function DocumentsTable({ documents, role }: { documents: Documen
                           Review
                         </Link>
                       )}
+                    {role === "admin" &&
+                      (d.archived_at ? (
+                        <button
+                          type="button"
+                          onClick={() => handleRestore(d.id)}
+                          disabled={isRowPending}
+                          className="text-sm text-slate-600 underline hover:text-slate-900 disabled:opacity-50"
+                        >
+                          Restore
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleArchive(d.id)}
+                          disabled={isRowPending}
+                          className="text-sm text-red-600 underline hover:text-red-800 disabled:opacity-50"
+                        >
+                          Archive
+                        </button>
+                      ))}
                   </div>
                 </td>
               </tr>

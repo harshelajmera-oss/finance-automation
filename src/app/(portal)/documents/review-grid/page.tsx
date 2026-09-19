@@ -23,6 +23,7 @@ export default async function ReviewGridPage() {
     .select("*, clients ( name, code, gstin )")
     .eq("extraction_status", "completed")
     .in("review_status", ["not_submitted", "rejected"])
+    .is("archived_at", null)
     .order("received_at", { ascending: true })
     .returns<DocumentRow[]>();
 
