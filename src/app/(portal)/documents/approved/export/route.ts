@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import { createClient } from "@/lib/supabase/server";
 import { fetchApprovedRows } from "@/lib/extraction/approved";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -13,7 +13,22 @@ export async function GET() {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 
-  const rows = await fetchApprovedRows(supabase);
+  const params = request.nextUrl.searchParams;
+  const idsParam = params.get("ids");
+
+  const rows = await fetchApprovedRows(
+    supabase,
+    idsParam
+      ? { reviewIds: idsParam.split(",").filter(Boolean) }
+      : {
+          vendorId: params.get("vendorId") || undefined,
+          receivedFrom: params.get("receivedFrom") || undefined,
+          receivedTo: params.get("receivedTo") || undefined,
+          approvedFrom: params.get("approvedFrom") || undefined,
+          approvedTo: params.get("approvedTo") || undefined,
+          onlyNotExported: params.get("showAll") !== "1",
+        },
+  );
 
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Approved");
@@ -70,6 +85,10 @@ export async function GET() {
   sheet.getColumn("bankAccount").numFmt = "@";
 
   const buffer = await workbook.xlsx.writeBuffer();
+
+  if (rows.length > 0) {
+    await supabase.rpc("mark_reviews_exported", { review_ids: rows.map((r) => r.reviewId) });
+  }
 
   return new NextResponse(buffer as ArrayBuffer, {
     headers: {

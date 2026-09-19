@@ -87,10 +87,14 @@ The build sequence has six steps.
   person before the change takes effect.
 - A persistent **navigation menu on every page** (not just the dashboard): Documents, Upload,
   Approved, plus Checker queue / Needs your attention depending on your role, plus an Admin menu.
-- An **"Approved" tab**, visible to maker, checker and admin alike, with column totals and its own
-  Excel export — expanded with bank account, IFSC, vendor GSTIN/PAN, TDS code/rate/amount and net
-  payable, sourced from the approved review (the confirmed record), not the raw AI extraction. The
-  checker queue has its own, simpler export too.
+- An **"Approved" tab**, visible to maker, checker and admin alike — expanded with bank account,
+  IFSC, vendor GSTIN/PAN, tax breakup (taxable/CGST/SGST/IGST), TDS code/rate/amount and net
+  payable, sourced from the approved review (the confirmed record), not the raw AI extraction.
+  Rows can be filtered by vendor, received-date range or approved-date range, ticked individually
+  for a custom download, or left on the default "only not yet downloaded" filter so re-exporting
+  after new approvals doesn't repeat rows already sent for payment — every export (filtered, full,
+  or a hand-picked selection) marks the rows it included as downloaded. The checker queue has its
+  own, simpler export too.
 - A maker's own **"Needs your attention"** view, listing their own rejected submissions so a
   rejection can't quietly go unnoticed.
 - **Bulk payout sheets** (many payees, no invoices — mentor payouts and similar): uploading an XLS

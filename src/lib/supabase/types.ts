@@ -104,6 +104,7 @@ export interface Review {
   checker_comment: string | null;
   checker_edited_fields: import("@/lib/extraction/schema").ExtractedFields | null;
   decided_at: string | null;
+  exported_at: string | null;
 }
 
 export type BankChangeRequestStatus = "pending" | "confirmed" | "rejected";

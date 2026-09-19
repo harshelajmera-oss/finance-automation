@@ -8,6 +8,7 @@ export interface ApprovedRow {
   clientName: string;
   clientCode: string;
   fileName: string;
+  vendorId: string | null;
   vendorName: string;
   vendorGstin: string | null;
   vendorPan: string | null;
@@ -26,6 +27,25 @@ export interface ApprovedRow {
   netPayable: number | null;
   paymentRoute: string;
   approvedAt: string | null;
+  exportedAt: string | null;
+}
+
+export interface ApprovedRowFilters {
+  reviewIds?: string[];
+  vendorId?: string;
+  receivedFrom?: string;
+  receivedTo?: string;
+  approvedFrom?: string;
+  approvedTo?: string;
+  onlyNotExported?: boolean;
+}
+
+function inRange(dateStr: string | null, from?: string, to?: string): boolean {
+  if (!dateStr) return !from && !to;
+  const t = new Date(dateStr).getTime();
+  if (from && t < new Date(from).getTime()) return false;
+  if (to && t > new Date(to).getTime() + 24 * 60 * 60 * 1000 - 1) return false;
+  return true;
 }
 
 /**
@@ -35,16 +55,16 @@ export interface ApprovedRow {
  * payable). Uses the checker's edited fields when present, otherwise the
  * maker's submitted fields.
  */
-export async function fetchApprovedRows(supabase: SupabaseClient): Promise<ApprovedRow[]> {
+export async function fetchApprovedRows(supabase: SupabaseClient, filters?: ApprovedRowFilters): Promise<ApprovedRow[]> {
   const { data } = await supabase
     .from("reviews")
     .select(
-      "*, documents ( id, original_filename, received_at, clients ( name, code ) ), vendors ( name, gstin, pan, bank_account, ifsc )",
+      "*, documents ( id, original_filename, received_at, clients ( name, code ) ), vendors ( id, name, gstin, pan, bank_account, ifsc )",
     )
     .eq("status", "approved")
     .order("decided_at", { ascending: false });
 
-  return (data ?? []).map((row) => {
+  const rows = (data ?? []).map((row) => {
     const fields = row.checker_edited_fields ?? row.reviewed_fields;
     const total = fields?.amounts?.total ?? null;
     const tdsAmount = row.tds_amount as number | null;
@@ -56,6 +76,7 @@ export async function fetchApprovedRows(supabase: SupabaseClient): Promise<Appro
       clients: { name: string; code: string } | null;
     } | null;
     const vendor = row.vendors as unknown as {
+      id: string;
       name: string;
       gstin: string | null;
       pan: string | null;
@@ -70,6 +91,7 @@ export async function fetchApprovedRows(supabase: SupabaseClient): Promise<Appro
       clientName: doc?.clients?.name ?? "",
       clientCode: doc?.clients?.code ?? "",
       fileName: doc?.original_filename ?? "",
+      vendorId: vendor?.id ?? row.vendor_id ?? null,
       vendorName: vendor?.name ?? fields?.vendor?.name ?? "",
       vendorGstin: vendor?.gstin ?? fields?.vendor?.gstin ?? null,
       vendorPan: vendor?.pan ?? fields?.vendor?.pan ?? null,
@@ -88,6 +110,18 @@ export async function fetchApprovedRows(supabase: SupabaseClient): Promise<Appro
       netPayable,
       paymentRoute: row.payment_route as string,
       approvedAt: row.decided_at as string | null,
+      exportedAt: row.exported_at as string | null,
     };
+  });
+
+  if (!filters) return rows;
+
+  return rows.filter((r) => {
+    if (filters.reviewIds && !filters.reviewIds.includes(r.reviewId)) return false;
+    if (filters.vendorId && r.vendorId !== filters.vendorId) return false;
+    if (filters.onlyNotExported && r.exportedAt) return false;
+    if (!inRange(r.receivedAt, filters.receivedFrom, filters.receivedTo)) return false;
+    if (!inRange(r.approvedAt, filters.approvedFrom, filters.approvedTo)) return false;
+    return true;
   });
 }
