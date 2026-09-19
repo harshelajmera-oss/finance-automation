@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchExtractionSummaryRows } from "@/lib/extraction/summary";
+import { formatDate, formatNumber } from "@/lib/format";
 
 export default async function ExtractionSummaryPage() {
   const supabase = await createClient();
@@ -67,7 +68,7 @@ export default async function ExtractionSummaryPage() {
             {rows.map((r) => (
               <tr key={r.documentId} className="border-b border-slate-100 last:border-0">
                 <td className="whitespace-nowrap px-3 py-2 text-slate-500">
-                  {r.receivedAt ? new Date(r.receivedAt).toLocaleDateString() : "—"}
+                  {r.receivedAt ? formatDate(r.receivedAt) : "—"}
                 </td>
                 <td className="px-3 py-2 text-slate-900">
                   {r.clientName} ({r.clientCode})
@@ -80,12 +81,12 @@ export default async function ExtractionSummaryPage() {
                 <td className="px-3 py-2 text-slate-900">{r.invoiceNumber ?? "—"}</td>
                 <td className="px-3 py-2 text-slate-900">{r.invoiceDate ?? "—"}</td>
                 <td className="px-3 py-2 text-right text-slate-900">
-                  {r.taxableValue?.toLocaleString() ?? "—"}
+                  {r.taxableValue !== null ? formatNumber(r.taxableValue) : "—"}
                 </td>
-                <td className="px-3 py-2 text-right text-slate-900">{r.cgst?.toLocaleString() ?? "—"}</td>
-                <td className="px-3 py-2 text-right text-slate-900">{r.sgst?.toLocaleString() ?? "—"}</td>
-                <td className="px-3 py-2 text-right text-slate-900">{r.igst?.toLocaleString() ?? "—"}</td>
-                <td className="px-3 py-2 text-right text-slate-900">{r.total?.toLocaleString() ?? "—"}</td>
+                <td className="px-3 py-2 text-right text-slate-900">{r.cgst !== null ? formatNumber(r.cgst) : "—"}</td>
+                <td className="px-3 py-2 text-right text-slate-900">{r.sgst !== null ? formatNumber(r.sgst) : "—"}</td>
+                <td className="px-3 py-2 text-right text-slate-900">{r.igst !== null ? formatNumber(r.igst) : "—"}</td>
+                <td className="px-3 py-2 text-right text-slate-900">{r.total !== null ? formatNumber(r.total) : "—"}</td>
                 <td className="px-3 py-2">
                   {r.flagCount > 0 ? (
                     <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
@@ -113,11 +114,11 @@ export default async function ExtractionSummaryPage() {
                 <td className="px-3 py-2" colSpan={5}>
                   Total
                 </td>
-                <td className="px-3 py-2 text-right">{totals.taxableValue.toLocaleString()}</td>
-                <td className="px-3 py-2 text-right">{totals.cgst.toLocaleString()}</td>
-                <td className="px-3 py-2 text-right">{totals.sgst.toLocaleString()}</td>
-                <td className="px-3 py-2 text-right">{totals.igst.toLocaleString()}</td>
-                <td className="px-3 py-2 text-right">{totals.total.toLocaleString()}</td>
+                <td className="px-3 py-2 text-right">{formatNumber(totals.taxableValue)}</td>
+                <td className="px-3 py-2 text-right">{formatNumber(totals.cgst)}</td>
+                <td className="px-3 py-2 text-right">{formatNumber(totals.sgst)}</td>
+                <td className="px-3 py-2 text-right">{formatNumber(totals.igst)}</td>
+                <td className="px-3 py-2 text-right">{formatNumber(totals.total)}</td>
                 <td className="px-3 py-2"></td>
               </tr>
             </tfoot>

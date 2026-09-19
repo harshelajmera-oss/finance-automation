@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { AuditLogEntry, Profile } from "@/lib/supabase/types";
+import { formatDateTime } from "@/lib/format";
 
 export default async function AuditLogPage() {
   const supabase = await createClient();
@@ -49,7 +50,7 @@ export default async function AuditLogPage() {
             {(entries ?? []).map((e) => (
               <tr key={e.id} className="border-b border-slate-100 align-top last:border-0">
                 <td className="whitespace-nowrap px-4 py-2 text-slate-500">
-                  {new Date(e.occurred_at).toLocaleString()}
+                  {formatDateTime(e.occurred_at)}
                 </td>
                 <td className="px-4 py-2 text-slate-900">{e.actor_email ?? "—"}</td>
                 <td className="px-4 py-2 text-slate-900">{e.action}</td>

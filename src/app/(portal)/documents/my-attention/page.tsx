@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Client, Document, Profile, Review } from "@/lib/supabase/types";
+import { formatDateTime } from "@/lib/format";
 
 type ReviewRow = Review & {
   documents: (Pick<Document, "id" | "original_filename" | "review_status"> & {
@@ -64,7 +65,7 @@ export default async function MyAttentionPage() {
             {stillRejected.map((r) => (
               <tr key={r.id} className="border-b border-slate-100 last:border-0">
                 <td className="whitespace-nowrap px-4 py-2 text-slate-500">
-                  {r.decided_at ? new Date(r.decided_at).toLocaleString() : "—"}
+                  {r.decided_at ? formatDateTime(r.decided_at) : "—"}
                 </td>
                 <td className="px-4 py-2 text-slate-900">
                   {r.documents?.clients ? `${r.documents.clients.name} (${r.documents.clients.code})` : "—"}

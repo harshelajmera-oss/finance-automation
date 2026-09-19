@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { findVendorMatch } from "@/lib/vendors/match";
+import { formatDate } from "@/lib/format";
 import type { Client, Document, Extraction, Profile, Review, TdsCode, Vendor } from "@/lib/supabase/types";
 import ViewDocumentButton from "../view-document-button";
 import ExtractButton from "./extract-button";
@@ -130,7 +131,7 @@ export default async function DocumentDetailPage({
           <h1 className="text-xl font-semibold text-slate-900">{document.original_filename}</h1>
           <p className="mt-1 text-sm text-slate-500">
             {document.clients ? `${document.clients.name} (${document.clients.code})` : "—"} ·
-            received {new Date(document.received_at).toLocaleDateString()}
+            received {formatDate(document.received_at)}
           </p>
         </div>
         <ViewDocumentButton documentId={document.id} />

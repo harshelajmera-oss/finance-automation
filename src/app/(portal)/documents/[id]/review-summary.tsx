@@ -1,4 +1,5 @@
 import { diffExtractedFields } from "@/lib/extraction/diff";
+import { formatDateTime, formatNumber } from "@/lib/format";
 import type { ExtractedFields } from "@/lib/extraction/schema";
 import type { Review, Vendor } from "@/lib/supabase/types";
 
@@ -77,7 +78,7 @@ export default function ReviewSummary({
             <dt className="text-xs text-slate-400">TDS</dt>
             <dd className="text-slate-900">
               {review.tds_code ? `${review.tds_code} @ ${review.tds_rate}%` : "—"}{" "}
-              {review.tds_amount !== null && `(₹${review.tds_amount.toLocaleString()})`}
+              {review.tds_amount !== null && `(₹${formatNumber(review.tds_amount)})`}
             </dd>
           </div>
           <div>
@@ -90,7 +91,7 @@ export default function ReviewSummary({
           </div>
           <div>
             <dt className="text-xs text-slate-400">Submitted</dt>
-            <dd className="text-slate-900">{new Date(review.submitted_at).toLocaleString()}</dd>
+            <dd className="text-slate-900">{formatDateTime(review.submitted_at)}</dd>
           </div>
         </dl>
         {review.override_reason && (
@@ -108,7 +109,7 @@ export default function ReviewSummary({
         >
           <p className={`text-sm font-medium ${review.status === "approved" ? "text-green-800" : "text-red-800"}`}>
             {review.status === "approved" ? "Approved" : "Rejected"}
-            {review.decided_at && ` on ${new Date(review.decided_at).toLocaleString()}`}
+            {review.decided_at && ` on ${formatDateTime(review.decided_at)}`}
           </p>
           {review.checker_comment && (
             <p className={`mt-1 text-sm ${review.status === "approved" ? "text-green-700" : "text-red-700"}`}>

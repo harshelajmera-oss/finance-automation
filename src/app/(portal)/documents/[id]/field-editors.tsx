@@ -1,6 +1,7 @@
 "use client";
 
 import { computeGrossUp } from "@/lib/tds/gross-up";
+import { formatNumber } from "@/lib/format";
 import type { ExtractedFields } from "@/lib/extraction/schema";
 import type { PaymentRoute, TdsCode } from "@/lib/supabase/types";
 
@@ -297,7 +298,7 @@ export function LedgerTdsFields({ state, tdsCodes, taxableValue }: { state: Ledg
           <div>
             <label className="mb-1 block text-xs text-slate-500">Gross (computed)</label>
             <p className="rounded-md bg-slate-50 px-2 py-1.5 text-sm text-slate-700">
-              {grossUpResult ? grossUpResult.gross.toLocaleString() : "—"}
+              {grossUpResult ? formatNumber(grossUpResult.gross) : "—"}
             </p>
           </div>
         </div>

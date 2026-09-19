@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import { createClient } from "@/lib/supabase/server";
 import { fetchExtractionSummaryRows } from "@/lib/extraction/summary";
+import { formatDate } from "@/lib/format";
 
 export async function GET() {
   const supabase = await createClient();
@@ -36,7 +37,7 @@ export async function GET() {
 
   for (const row of rows) {
     sheet.addRow({
-      receivedAt: row.receivedAt ? new Date(row.receivedAt).toLocaleDateString() : "",
+      receivedAt: row.receivedAt ? formatDate(row.receivedAt) : "",
       clientName: `${row.clientName} (${row.clientCode})`,
       fileName: row.fileName,
       vendorName: row.vendorName ?? "",

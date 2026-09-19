@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import { createClient } from "@/lib/supabase/server";
 import { fetchApprovedRows } from "@/lib/extraction/approved";
+import { formatDate } from "@/lib/format";
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
 
   for (const row of rows) {
     sheet.addRow({
-      approvedAt: row.approvedAt ? new Date(row.approvedAt).toLocaleDateString() : "",
+      approvedAt: row.approvedAt ? formatDate(row.approvedAt) : "",
       clientName: `${row.clientName} (${row.clientCode})`,
       vendorName: row.vendorName,
       vendorGstin: row.vendorGstin ?? "",

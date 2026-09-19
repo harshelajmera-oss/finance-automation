@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import { createClient } from "@/lib/supabase/server";
+import { formatDateTime } from "@/lib/format";
 
 export async function GET() {
   const supabase = await createClient();
@@ -39,7 +40,7 @@ export async function GET() {
     const vendor = r.vendors as { name: string; is_approved: boolean } | null;
 
     sheet.addRow({
-      submittedAt: new Date(r.submitted_at).toLocaleString(),
+      submittedAt: formatDateTime(r.submitted_at),
       clientName: doc?.clients ? `${doc.clients.name} (${doc.clients.code})` : "",
       fileName: doc?.original_filename ?? "",
       vendorName: vendor?.name ?? "",

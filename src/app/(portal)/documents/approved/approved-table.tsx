@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { ApprovedRow } from "@/lib/extraction/approved";
+import { formatDate, formatNumber } from "@/lib/format";
 
 const PAYMENT_ROUTE_LABELS: Record<string, string> = {
   portal: "Pay via portal",
@@ -110,7 +111,7 @@ export default function ApprovedTable({ rows, currentFilters }: { rows: Approved
                   />
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-slate-500">
-                  {r.approvedAt ? new Date(r.approvedAt).toLocaleDateString() : "—"}
+                  {r.approvedAt ? formatDate(r.approvedAt) : "—"}
                 </td>
                 <td className="px-3 py-2 text-slate-900">
                   {r.clientName} ({r.clientCode})
@@ -121,19 +122,19 @@ export default function ApprovedTable({ rows, currentFilters }: { rows: Approved
                   </Link>
                 </td>
                 <td className="px-3 py-2 text-slate-900">{r.invoiceNumber ?? "—"}</td>
-                <td className="px-3 py-2 text-right text-slate-900">{r.taxableValue?.toLocaleString() ?? "—"}</td>
-                <td className="px-3 py-2 text-right text-slate-900">{r.cgst?.toLocaleString() ?? "—"}</td>
-                <td className="px-3 py-2 text-right text-slate-900">{r.sgst?.toLocaleString() ?? "—"}</td>
-                <td className="px-3 py-2 text-right text-slate-900">{r.igst?.toLocaleString() ?? "—"}</td>
-                <td className="px-3 py-2 text-right text-slate-900">{r.total?.toLocaleString() ?? "—"}</td>
-                <td className="px-3 py-2 text-right text-slate-900">{r.tdsAmount?.toLocaleString() ?? "—"}</td>
+                <td className="px-3 py-2 text-right text-slate-900">{r.taxableValue !== null ? formatNumber(r.taxableValue) : "—"}</td>
+                <td className="px-3 py-2 text-right text-slate-900">{r.cgst !== null ? formatNumber(r.cgst) : "—"}</td>
+                <td className="px-3 py-2 text-right text-slate-900">{r.sgst !== null ? formatNumber(r.sgst) : "—"}</td>
+                <td className="px-3 py-2 text-right text-slate-900">{r.igst !== null ? formatNumber(r.igst) : "—"}</td>
+                <td className="px-3 py-2 text-right text-slate-900">{r.total !== null ? formatNumber(r.total) : "—"}</td>
+                <td className="px-3 py-2 text-right text-slate-900">{r.tdsAmount !== null ? formatNumber(r.tdsAmount) : "—"}</td>
                 <td className="px-3 py-2 text-right font-medium text-slate-900">
-                  {r.netPayable?.toLocaleString() ?? "—"}
+                  {r.netPayable !== null ? formatNumber(r.netPayable) : "—"}
                 </td>
                 <td className="px-3 py-2 text-slate-500">{PAYMENT_ROUTE_LABELS[r.paymentRoute] ?? r.paymentRoute}</td>
                 <td className="px-3 py-2 text-slate-500">
                   {r.exportedAt ? (
-                    new Date(r.exportedAt).toLocaleDateString()
+                    formatDate(r.exportedAt)
                   ) : (
                     <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">New</span>
                   )}

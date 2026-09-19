@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Client, Document, Profile, Review, Vendor } from "@/lib/supabase/types";
+import { formatDateTime } from "@/lib/format";
 
 type ReviewRow = Review & {
   documents: (Pick<Document, "id" | "original_filename" | "received_at"> & {
@@ -69,7 +70,7 @@ export default async function CheckerQueuePage() {
             {(reviews ?? []).map((r) => (
               <tr key={r.id} className="border-b border-slate-100 last:border-0">
                 <td className="whitespace-nowrap px-4 py-2 text-slate-500">
-                  {new Date(r.submitted_at).toLocaleString()}
+                  {formatDateTime(r.submitted_at)}
                 </td>
                 <td className="px-4 py-2 text-slate-900">
                   {r.documents?.clients ? `${r.documents.clients.name} (${r.documents.clients.code})` : "—"}

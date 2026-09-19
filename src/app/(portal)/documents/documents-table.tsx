@@ -5,6 +5,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { runExtraction } from "./actions";
 import ViewDocumentButton from "./view-document-button";
+import { formatDateTime } from "@/lib/format";
 import type { Client, Document } from "@/lib/supabase/types";
 
 type DocumentRow = Document & { clients: Pick<Client, "name" | "code"> | null };
@@ -179,7 +180,7 @@ export default function DocumentsTable({ documents }: { documents: DocumentRow[]
                   />
                 </td>
                 <td className="whitespace-nowrap px-4 py-2 text-slate-500">
-                  {new Date(d.received_at).toLocaleString()}
+                  {formatDateTime(d.received_at)}
                 </td>
                 <td className="px-4 py-2 text-slate-900">
                   {d.clients ? `${d.clients.name} (${d.clients.code})` : "—"}

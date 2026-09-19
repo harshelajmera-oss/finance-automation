@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { checkerDecide } from "../actions";
 import { EditableExtractedFields, LedgerTdsFields, PaymentRouteField } from "./field-editors";
+import { formatNumber } from "@/lib/format";
 import type { ExtractedFields, ValidationFlag } from "@/lib/extraction/schema";
 import type { PaymentRoute, Review, TdsCode } from "@/lib/supabase/types";
 
@@ -65,8 +66,9 @@ export default function CheckerEditForm({
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
           <p className="font-medium">From the payout sheet: {payout.source_row_label}</p>
           <p className="mt-1">
-            Gross ₹{payout.gross?.toLocaleString() ?? "—"}, TDS ₹{payout.tds?.toLocaleString() ?? "—"}, net ₹
-            {payout.net?.toLocaleString() ?? "—"}
+            Gross ₹{payout.gross !== null ? formatNumber(payout.gross) : "—"}, TDS ₹
+            {payout.tds !== null ? formatNumber(payout.tds) : "—"}, net ₹
+            {payout.net !== null ? formatNumber(payout.net) : "—"}
             {payout.bank_account_name ? ` — bank account is in the name of ${payout.bank_account_name}` : ""}.
           </p>
         </div>

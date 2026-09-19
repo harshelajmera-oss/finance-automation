@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { submitReview } from "../actions";
 import { TextInput, EditableExtractedFields, LedgerTdsFields, PaymentRouteField } from "./field-editors";
+import { formatNumber } from "@/lib/format";
 import type { ExtractedFields, ValidationFlag } from "@/lib/extraction/schema";
 import type { PaymentRoute, TdsCode, TdsTreatment, Vendor } from "@/lib/supabase/types";
 
@@ -89,8 +90,9 @@ export default function ReviewForm({
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
           <p className="font-medium">From the payout sheet: {payout.source_row_label}</p>
           <p className="mt-1">
-            Gross ₹{payout.gross?.toLocaleString() ?? "—"}, TDS ₹{payout.tds?.toLocaleString() ?? "—"}, net ₹
-            {payout.net?.toLocaleString() ?? "—"}
+            Gross ₹{payout.gross !== null ? formatNumber(payout.gross) : "—"}, TDS ₹
+            {payout.tds !== null ? formatNumber(payout.tds) : "—"}, net ₹
+            {payout.net !== null ? formatNumber(payout.net) : "—"}
             {payout.bank_account_name ? ` — bank account is in the name of ${payout.bank_account_name}` : ""}.
             Gross-up, the TDS rate and the amounts below are pre-filled from this — check them before submitting.
           </p>
