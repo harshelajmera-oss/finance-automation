@@ -38,6 +38,11 @@ export default async function PortalLayout({ children }: { children: React.React
               Approved
             </Link>
             {role === "maker" && (
+              <Link href="/documents/review-grid" className="text-slate-600 hover:text-slate-900">
+                Review grid
+              </Link>
+            )}
+            {role === "maker" && (
               <Link href="/documents/my-attention" className="text-slate-600 hover:text-slate-900">
                 Needs your attention
               </Link>
@@ -45,6 +50,11 @@ export default async function PortalLayout({ children }: { children: React.React
             {role === "checker" && (
               <Link href="/documents/checker-queue" className="text-slate-600 hover:text-slate-900">
                 Checker queue
+              </Link>
+            )}
+            {role === "checker" && (
+              <Link href="/documents/checker-grid" className="text-slate-600 hover:text-slate-900">
+                Approve grid
               </Link>
             )}
             {role === "checker" && (

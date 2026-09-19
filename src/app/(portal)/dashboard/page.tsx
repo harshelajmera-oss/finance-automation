@@ -83,6 +83,14 @@ export default async function DashboardPage() {
         </Link>
         {profile?.role === "maker" && (
           <Link
+            href="/documents/review-grid"
+            className="block rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
+          >
+            Review grid (edit and submit several at once) →
+          </Link>
+        )}
+        {profile?.role === "maker" && (
+          <Link
             href="/documents/my-attention"
             className="block rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
           >
@@ -95,6 +103,14 @@ export default async function DashboardPage() {
             className="block rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
           >
             Checker queue →
+          </Link>
+        )}
+        {profile?.role === "checker" && (
+          <Link
+            href="/documents/checker-grid"
+            className="block rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
+          >
+            Approve grid (edit and approve several at once) →
           </Link>
         )}
       </div>

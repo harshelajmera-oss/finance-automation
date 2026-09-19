@@ -105,8 +105,17 @@ The build sequence has six steps.
   zero or scientific notation) is flagged for the maker to verify against the original file rather
   than silently trusted. The physical sheet is stored once (`payout_batches`); re-uploading the
   exact same file is refused rather than double-importing every row.
-- Not built yet: **bulk approve** for flag-free items (the spec allows it; only single approve/
-  reject exists so far).
+- A **Review grid** (maker) and **Approve grid** (checker): a wide, spreadsheet-style table showing
+  every document ready for review/approval at once — vendor, GSTIN, PAN, billed-to, nature of
+  service, amount, IGST/CGST/SGST, bank account, IFSC, gross-up, TDS code/rate/amount, and payment
+  route are all editable directly in the table, no need to open each document individually. Tick
+  several rows and submit or approve them together — this is where the spec's "bulk approve" for
+  flag-free items lives. Anything needing the full document view (line items, IRN, notes, or a
+  genuinely one-off fix) still has an "Open" link. This is also the natural home for bulk payout
+  rows, which otherwise come in dozens at a time. A red-flagged row still needs an override reason
+  before it can be submitted, same rule as the single-document screen. Rejecting stays one row at a
+  time, since a rejection needs its own comment. The original single-document screen (Documents →
+  click a file) still exists side by side, unchanged, for anyone who prefers it.
 
 Not yet built: email intake (needs a Google account connection), Google Drive filing, payments, and
 the Google Sheets/Tally exports.
