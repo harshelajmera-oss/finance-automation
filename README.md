@@ -93,6 +93,18 @@ The build sequence has six steps.
   checker queue has its own, simpler export too.
 - A maker's own **"Needs your attention"** view, listing their own rejected submissions so a
   rejection can't quietly go unnoticed.
+- **Bulk payout sheets** (many payees, no invoices — mentor payouts and similar): uploading an XLS
+  or XLSX on the Upload page is treated as a payout sheet, not a single invoice. It's parsed
+  deterministically (no AI call) and every payee row becomes its own ordinary document, flowing
+  through the exact same maker/checker/vendor-master/approved pipeline as anything else. Column
+  headers for "Amount Paid" vs "Gross Amount" aren't trusted at face value — real sample sheets
+  used both conventions inconsistently — so the larger of the two figures is taken as the gross and
+  the smaller as the net actually paid, per rupee amounts rounded per the spec's gross-up rule. Rows
+  with a missing PAN, or an unreadable/missing bank account or IFSC, are put on hold, matching the
+  spec's payment-batch rule. A row whose bank account was stored as a number (risking a lost leading
+  zero or scientific notation) is flagged for the maker to verify against the original file rather
+  than silently trusted. The physical sheet is stored once (`payout_batches`); re-uploading the
+  exact same file is refused rather than double-importing every row.
 - Not built yet: **bulk approve** for flag-free items (the spec allows it; only single approve/
   reject exists so far).
 
@@ -113,6 +125,8 @@ the Google Sheets/Tally exports.
   reject rules (including "never approve your own submission," enforced in the database).
 - `supabase/migrations/0005_checker_edit_and_bank_control.sql` — the checker's own edit column, and
   the bank-detail propose → confirm flow.
+- `supabase/migrations/0006_bulk_payout_sheets.sql` — the `payout_batches` table and the columns
+  linking a document back to the sheet and row it came from.
   Run each migration file after the last, in order, the same way (paste into the Supabase SQL
   Editor, click Run).
 - `supabase/seed.sql` — creates the one organization row the firm's users belong to.

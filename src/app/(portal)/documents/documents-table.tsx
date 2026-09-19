@@ -188,6 +188,11 @@ export default function DocumentsTable({ documents }: { documents: DocumentRow[]
                   <Link href={`/documents/${d.id}`} className="text-slate-900 underline hover:no-underline">
                     {d.original_filename}
                   </Link>
+                  {d.source === "bulk_payout" && (
+                    <span className="ml-2 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-800">
+                      Payout row
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-2">
                   {d.status === "duplicate" ? (

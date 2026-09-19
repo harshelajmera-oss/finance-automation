@@ -26,15 +26,22 @@ export default function ReviewForm({
 }) {
   const router = useRouter();
   const [fields, setFields] = useState<ExtractedFields>(initialFields);
+  const payout = initialFields.payout ?? null;
+  const payoutTdsCodeGuess = payout
+    ? tdsCodes.find((c) => payout.tds_rate_percent !== null && Math.abs(c.default_rate - payout.tds_rate_percent) < 0.5)
+    : null;
+
   const [expenseLedger, setExpenseLedger] = useState(vendorMatch?.default_expense_ledger ?? "");
   const [newVendorName, setNewVendorName] = useState(initialFields.vendor.name ?? "");
   const [newVendorLedger, setNewVendorLedger] = useState("");
   const [newVendorTreatment, setNewVendorTreatment] = useState<TdsTreatment>("deduct");
-  const [tdsCode, setTdsCode] = useState(vendorMatch?.last_tds_code ?? "");
-  const [tdsRate, setTdsRate] = useState<number | null>(vendorMatch?.last_tds_rate ?? null);
-  const [tdsAmount, setTdsAmount] = useState<number | null>(null);
-  const [grossUp, setGrossUp] = useState(vendorMatch?.gross_up ?? false);
-  const [netAmount, setNetAmount] = useState<number | null>(null);
+  const [tdsCode, setTdsCode] = useState(vendorMatch?.last_tds_code ?? payoutTdsCodeGuess?.code ?? "");
+  const [tdsRate, setTdsRate] = useState<number | null>(
+    vendorMatch?.last_tds_rate ?? payout?.tds_rate_percent ?? null,
+  );
+  const [tdsAmount, setTdsAmount] = useState<number | null>(payout?.tds ?? null);
+  const [grossUp, setGrossUp] = useState(vendorMatch?.gross_up ?? Boolean(payout));
+  const [netAmount, setNetAmount] = useState<number | null>(payout?.net ?? null);
   const [paymentRoute, setPaymentRoute] = useState<PaymentRoute>("portal");
   const [overrideReason, setOverrideReason] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +85,18 @@ export default function ReviewForm({
 
   return (
     <div className="space-y-6">
+      {payout && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+          <p className="font-medium">From the payout sheet: {payout.source_row_label}</p>
+          <p className="mt-1">
+            Gross ₹{payout.gross?.toLocaleString() ?? "—"}, TDS ₹{payout.tds?.toLocaleString() ?? "—"}, net ₹
+            {payout.net?.toLocaleString() ?? "—"}
+            {payout.bank_account_name ? ` — bank account is in the name of ${payout.bank_account_name}` : ""}.
+            Gross-up, the TDS rate and the amounts below are pre-filled from this — check them before submitting.
+          </p>
+        </div>
+      )}
+
       {rejectionComment && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4">
           <p className="text-sm font-medium text-red-800">Sent back by the checker:</p>

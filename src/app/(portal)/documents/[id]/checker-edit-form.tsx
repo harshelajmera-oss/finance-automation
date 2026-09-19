@@ -57,8 +57,21 @@ export default function CheckerEditForm({
     });
   }
 
+  const payout = review.reviewed_fields.payout ?? null;
+
   return (
     <div className="space-y-6">
+      {payout && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+          <p className="font-medium">From the payout sheet: {payout.source_row_label}</p>
+          <p className="mt-1">
+            Gross ₹{payout.gross?.toLocaleString() ?? "—"}, TDS ₹{payout.tds?.toLocaleString() ?? "—"}, net ₹
+            {payout.net?.toLocaleString() ?? "—"}
+            {payout.bank_account_name ? ` — bank account is in the name of ${payout.bank_account_name}` : ""}.
+          </p>
+        </div>
+      )}
+
       {flags.length > 0 && (
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="mb-2 text-sm font-semibold text-slate-900">Flags from extraction</h2>

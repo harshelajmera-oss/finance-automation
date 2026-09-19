@@ -56,6 +56,20 @@ export interface ExtractedFields {
     credit_lines_against_earlier_invoices: string | null;
   };
   low_confidence_fields: string[];
+  /**
+   * Only present for a row parsed from a bulk payout sheet (never set by
+   * Claude or manual entry). Carries the gross-up numbers worked out
+   * deterministically at import time, so the maker's review screen can
+   * start from them instead of recomputing by hand.
+   */
+  payout?: {
+    gross: number | null;
+    net: number | null;
+    tds: number | null;
+    tds_rate_percent: number | null;
+    bank_account_name: string | null;
+    source_row_label: string;
+  } | null;
 }
 
 /** A blank starting point for manual entry — same shape a completed extraction has. */
@@ -79,6 +93,7 @@ export function emptyExtractedFields(): ExtractedFields {
     amounts: { taxable_value: null, cgst: null, sgst: null, igst: null, total: null, amount_already_paid: null },
     notes: { tds_mentioned: false, reverse_charge_mentioned: false, credit_lines_against_earlier_invoices: null },
     low_confidence_fields: [],
+    payout: null,
   };
 }
 

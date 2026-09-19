@@ -4,15 +4,25 @@ import { useRef, useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { uploadDocument } from "./actions";
+import { uploadPayoutSheet } from "./payout-actions";
 import { getDocumentViewUrl } from "../actions";
 import type { Client } from "@/lib/supabase/types";
 
 interface FileResult {
   name: string;
-  status: "uploaded" | "duplicate" | "error";
+  status: "uploaded" | "duplicate" | "error" | "payout";
   documentId?: string;
   error?: string;
+  payoutSummary?: {
+    rowCount: number;
+    onHoldCount: number;
+    warningCount: number;
+    skippedBlankRows: number;
+    missingColumns: string[];
+  };
 }
+
+const PAYOUT_EXTENSIONS = ["xls", "xlsx"];
 
 export default function UploadForm({ clients }: { clients: Client[] }) {
   const router = useRouter();
@@ -47,13 +57,20 @@ export default function UploadForm({ clients }: { clients: Client[] }) {
         formData.set("clientId", clientId);
         formData.set("file", file);
 
+        const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+
         try {
-          const result = await uploadDocument(formData);
-          outcomes.push({
-            name: file.name,
-            status: result.isDuplicate ? "duplicate" : "uploaded",
-            documentId: result.documentId,
-          });
+          if (PAYOUT_EXTENSIONS.includes(extension)) {
+            const result = await uploadPayoutSheet(formData);
+            outcomes.push({ name: file.name, status: "payout", payoutSummary: result });
+          } else {
+            const result = await uploadDocument(formData);
+            outcomes.push({
+              name: file.name,
+              status: result.isDuplicate ? "duplicate" : "uploaded",
+              documentId: result.documentId,
+            });
+          }
         } catch (err) {
           outcomes.push({
             name: file.name,
@@ -126,8 +143,11 @@ export default function UploadForm({ clients }: { clients: Client[] }) {
           className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm"
         />
         <p className="mt-1 text-xs text-slate-400">
-          PDF, JPG, PNG, XLS or XLSX, up to 25 MB each. Select more than one at once if you like —
-          hold Ctrl (or Cmd on a Mac) while clicking to pick several.
+          PDF, JPG or PNG for a single invoice/receipt, up to 25 MB each. Select more than one at
+          once if you like — hold Ctrl (or Cmd on a Mac) while clicking to pick several. An XLS or
+          XLSX file is treated as a <span className="font-medium">bulk payout sheet</span> — many
+          payees, one row each — and every row is imported as its own item to review, rather than
+          being read as a single invoice.
         </p>
       </div>
 
@@ -155,6 +175,24 @@ export default function UploadForm({ clients }: { clients: Client[] }) {
               {r.status === "uploaded" && "uploaded."}
               {r.status === "duplicate" && "uploaded — flagged as a duplicate."}
               {r.status === "error" && `failed — ${r.error}`}
+              {r.status === "payout" && r.payoutSummary && (
+                <>
+                  {r.payoutSummary.rowCount} payee row{r.payoutSummary.rowCount === 1 ? "" : "s"} imported
+                  {r.payoutSummary.onHoldCount > 0 && `, ${r.payoutSummary.onHoldCount} on hold`}
+                  {r.payoutSummary.warningCount > 0 && `, ${r.payoutSummary.warningCount} flagged for review`}
+                  {r.payoutSummary.skippedBlankRows > 0 && ` (${r.payoutSummary.skippedBlankRows} blank rows skipped)`}
+                  {". "}
+                  <Link href="/documents" className="underline hover:opacity-80">
+                    Review them
+                  </Link>
+                  {r.payoutSummary.missingColumns.length > 0 && (
+                    <span className="block text-xs text-amber-700">
+                      Couldn&apos;t find a column for: {r.payoutSummary.missingColumns.join(", ")} — those fields
+                      were left blank for every row.
+                    </span>
+                  )}
+                </>
+              )}
               {r.documentId && (
                 <>
                   {" "}
