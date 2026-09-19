@@ -72,9 +72,27 @@ The build sequence has six steps.
   error-level flag is open unless a reason is written, and picking a payment route (portal / card /
   employee / auto-debit / pay gross and recover) is part of submitting.
 - The **checker queue**: everything awaiting a decision, oldest first, showing exactly what the
-  maker changed from Claude's original read (old value → new value). Approve, or reject with a
-  required comment. A checker can never approve a document they submitted themselves — enforced in
-  the database itself, not just the screen, matching the control rule from Step 1.
+  maker changed from Claude's original read (old value → new value). A checker can now **edit any
+  field before deciding** rather than only rejecting back to the maker — the edit lands in its own
+  column, kept separate from the maker's version, so the record always shows who changed what.
+  Approve, or reject with a required comment. A checker can never approve a document they submitted
+  themselves — enforced in the database itself, not just the screen, matching the control rule from
+  Step 1.
+- A **manual entry** fallback ("Enter details manually," next to "Extract fields") for when
+  extraction fails or isn't wanted — the same field-editing form, feeding the same review pipeline,
+  recorded as a manually-entered extraction rather than an AI-read one.
+- Client and vendor **edit screens**. Vendor identity fields (name, GSTIN, PAN, state, Udyam,
+  ledger, TDS defaults) are an ordinary single-person edit. Bank account and IFSC are not — per the
+  spec's own fraud-control rule, those go through a **propose → confirm** flow requiring a second
+  person before the change takes effect.
+- A persistent **navigation menu on every page** (not just the dashboard): Documents, Upload,
+  Approved, plus Checker queue / Needs your attention depending on your role, plus an Admin menu.
+- An **"Approved" tab**, visible to maker, checker and admin alike, with column totals and its own
+  Excel export — expanded with bank account, IFSC, vendor GSTIN/PAN, TDS code/rate/amount and net
+  payable, sourced from the approved review (the confirmed record), not the raw AI extraction. The
+  checker queue has its own, simpler export too.
+- A maker's own **"Needs your attention"** view, listing their own rejected submissions so a
+  rejection can't quietly go unnoticed.
 - Not built yet: **bulk approve** for flag-free items (the spec allows it; only single approve/
   reject exists so far).
 
@@ -93,6 +111,8 @@ the Google Sheets/Tally exports.
 - `supabase/migrations/0003_extraction.sql` — extraction results and the flags they raise.
 - `supabase/migrations/0004_review.sql` — vendors, TDS codes, reviews, and the checker's approve/
   reject rules (including "never approve your own submission," enforced in the database).
+- `supabase/migrations/0005_checker_edit_and_bank_control.sql` — the checker's own edit column, and
+  the bank-detail propose → confirm flow.
   Run each migration file after the last, in order, the same way (paste into the Supabase SQL
   Editor, click Run).
 - `supabase/seed.sql` — creates the one organization row the firm's users belong to.
