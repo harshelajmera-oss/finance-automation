@@ -109,6 +109,7 @@ export default function CheckerEditForm({
         tdsCodes={tdsCodes}
         taxableValue={fields.amounts.taxable_value}
         total={fields.amounts.total}
+        amountAlreadyPaid={fields.amounts.amount_already_paid}
       />
 
       <PaymentRouteField value={paymentRoute} onChange={setPaymentRoute} />

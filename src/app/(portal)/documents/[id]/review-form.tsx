@@ -163,6 +163,7 @@ export default function ReviewForm({
         tdsCodes={tdsCodes}
         taxableValue={fields.amounts.taxable_value}
         total={fields.amounts.total}
+        amountAlreadyPaid={fields.amounts.amount_already_paid}
       />
 
       <PaymentRouteField value={paymentRoute} onChange={setPaymentRoute} />

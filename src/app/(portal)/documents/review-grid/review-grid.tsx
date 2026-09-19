@@ -28,10 +28,12 @@ interface RowState {
   vendorPan: string;
   billedToName: string;
   natureOfService: string;
-  total: number | null;
+  taxableValue: number | null;
   igst: number | null;
   cgst: number | null;
   sgst: number | null;
+  total: number | null;
+  amountAlreadyPaid: number | null;
   bankAccount: string;
   ifsc: string;
   grossUp: boolean;
@@ -50,11 +52,40 @@ interface Outcome {
   error?: string;
 }
 
-function computeTds(state: Pick<RowState, "tdsRate" | "grossUp" | "netAmount" | "total" | "tdsAmount">): number | null {
-  if (state.tdsRate === null) return state.tdsAmount;
-  if (state.grossUp && state.netAmount !== null) return computeGrossUp(state.netAmount, state.tdsRate).tds;
-  if (state.total !== null) return Math.round((state.total * state.tdsRate) / 100);
-  return state.tdsAmount;
+function computeTotal(s: Pick<RowState, "taxableValue" | "cgst" | "sgst" | "igst">): number | null {
+  if (s.taxableValue === null) return null;
+  return s.taxableValue + (s.cgst ?? 0) + (s.sgst ?? 0) + (s.igst ?? 0);
+}
+
+function computeTds(
+  s: Pick<RowState, "tdsRate" | "grossUp" | "netAmount" | "taxableValue" | "total" | "tdsAmount">,
+): number | null {
+  if (s.tdsRate === null) return s.tdsAmount;
+  if (s.grossUp && s.netAmount !== null) return computeGrossUp(s.netAmount, s.tdsRate).tds;
+  const base = s.taxableValue ?? s.total;
+  if (base !== null) return Math.round((base * s.tdsRate) / 100);
+  return s.tdsAmount;
+}
+
+/** Recomputes Total from taxable value + GST, then TDS from the result — the two auto-fills that chain together. */
+function recalcAmounts(s: RowState): RowState {
+  const total = computeTotal(s);
+  const withTotal = { ...s, total };
+  return { ...withTotal, tdsAmount: computeTds(withTotal) };
+}
+
+/**
+ * A vendor either charges IGST, or CGST+SGST together (never both) — and
+ * when they do charge CGST/SGST, the two are always equal. Editing one tax
+ * field keeps the others consistent instead of leaving it to the maker to
+ * remember the rule.
+ */
+function applyGstEdit(s: RowState, field: "cgst" | "sgst" | "igst", value: number | null): RowState {
+  const hasValue = value !== null && value !== 0;
+  if (field === "igst") {
+    return { ...s, igst: value, cgst: hasValue ? null : s.cgst, sgst: hasValue ? null : s.sgst };
+  }
+  return { ...s, cgst: value, sgst: value, igst: hasValue ? null : s.igst };
 }
 
 function initRowState(row: GridDocRow, tdsCodes: TdsCode[]): RowState {
@@ -69,10 +100,12 @@ function initRowState(row: GridDocRow, tdsCodes: TdsCode[]): RowState {
     vendorPan: row.fields.vendor.pan ?? "",
     billedToName: row.fields.billed_to.name ?? "",
     natureOfService: row.fields.service.description ?? "",
-    total: row.fields.amounts.total,
+    taxableValue: row.fields.amounts.taxable_value,
     igst: row.fields.amounts.igst,
     cgst: row.fields.amounts.cgst,
     sgst: row.fields.amounts.sgst,
+    total: row.fields.amounts.total,
+    amountAlreadyPaid: row.fields.amounts.amount_already_paid,
     bankAccount: row.fields.vendor.bank_account ?? "",
     ifsc: row.fields.vendor.ifsc ?? "",
     grossUp: vendorMatch?.gross_up ?? Boolean(payout),
@@ -86,10 +119,10 @@ function initRowState(row: GridDocRow, tdsCodes: TdsCode[]): RowState {
 }
 
 function Cell({ children, width = "w-28" }: { children: React.ReactNode; width?: string }) {
-  return <td className={`border-r border-slate-100 px-1.5 py-1 align-top ${width}`}>{children}</td>;
+  return <td className={`border-r border-slate-100 px-2 py-1.5 align-top ${width}`}>{children}</td>;
 }
 
-const inputClass = "w-full rounded border border-slate-300 px-1.5 py-1 text-xs";
+const inputClass = "w-full rounded border border-slate-300 px-2 py-1.5 text-sm";
 
 function GText({ value, onChange, readOnly }: { value: string; onChange?: (v: string) => void; readOnly?: boolean }) {
   return (
@@ -126,15 +159,19 @@ export default function ReviewGrid({ rows, tdsCodes }: { rows: GridDocRow[]; tds
 
   const rowsById = useMemo(() => new Map(rows.map((r) => [r.documentId, r])), [rows]);
 
+  function rowState(id: string): RowState {
+    const existing = states[id];
+    if (existing) return existing;
+    const row = rowsById.get(id);
+    return row ? initRowState(row, tdsCodes) : ({} as RowState);
+  }
+
   function patch(id: string, updater: (s: RowState) => RowState) {
-    setStates((prev) => ({ ...prev, [id]: updater(prev[id]) }));
+    setStates((prev) => ({ ...prev, [id]: updater(prev[id] ?? rowState(id)) }));
   }
 
   function patchAndRecalc(id: string, updater: (s: RowState) => RowState) {
-    patch(id, (s) => {
-      const next = updater(s);
-      return { ...next, tdsAmount: computeTds(next) };
-    });
+    patch(id, (s) => recalcAmounts(updater(s)));
   }
 
   function toggle(id: string) {
@@ -163,7 +200,15 @@ export default function ReviewGrid({ rows, tdsCodes }: { rows: GridDocRow[]; tds
       },
       billed_to: { ...row.fields.billed_to, name: state.billedToName.trim() || null },
       service: { ...row.fields.service, description: state.natureOfService.trim() || null },
-      amounts: { ...row.fields.amounts, total: state.total, igst: state.igst, cgst: state.cgst, sgst: state.sgst },
+      amounts: {
+        ...row.fields.amounts,
+        taxable_value: state.taxableValue,
+        total: state.total,
+        igst: state.igst,
+        cgst: state.cgst,
+        sgst: state.sgst,
+        amount_already_paid: state.amountAlreadyPaid,
+      },
     };
     const vendor = row.vendorMatch
       ? {
@@ -197,8 +242,8 @@ export default function ReviewGrid({ rows, tdsCodes }: { rows: GridDocRow[]; tds
 
       for (const id of ids) {
         const row = rowsById.get(id);
-        const state = states[id];
-        if (!row || !state) continue;
+        if (!row) continue;
+        const state = rowState(id);
         const label = state.vendorName || row.originalFilename;
         const hasErrorFlags = row.flags.some((f) => f.severity === "error");
 
@@ -279,10 +324,11 @@ export default function ReviewGrid({ rows, tdsCodes }: { rows: GridDocRow[]; tds
               <th className="px-2 py-2 font-medium">Vendor PAN</th>
               <th className="px-2 py-2 font-medium">Billed to</th>
               <th className="px-2 py-2 font-medium">Nature of service</th>
-              <th className="px-2 py-2 font-medium">Amount</th>
+              <th className="px-2 py-2 font-medium">Taxable value</th>
               <th className="px-2 py-2 font-medium">IGST</th>
               <th className="px-2 py-2 font-medium">CGST</th>
               <th className="px-2 py-2 font-medium">SGST</th>
+              <th className="px-2 py-2 font-medium">Total</th>
               <th className="px-2 py-2 font-medium">Bank account</th>
               <th className="px-2 py-2 font-medium">IFSC</th>
               <th className="px-2 py-2 font-medium">Gross-up</th>
@@ -290,6 +336,7 @@ export default function ReviewGrid({ rows, tdsCodes }: { rows: GridDocRow[]; tds
               <th className="px-2 py-2 font-medium">TDS rate</th>
               <th className="px-2 py-2 font-medium">Net amt</th>
               <th className="px-2 py-2 font-medium">TDS amt</th>
+              <th className="px-2 py-2 font-medium">Already paid</th>
               <th className="px-2 py-2 font-medium">Payment route</th>
               <th className="px-2 py-2 font-medium">Flags</th>
               <th className="px-2 py-2 font-medium"></th>
@@ -297,7 +344,7 @@ export default function ReviewGrid({ rows, tdsCodes }: { rows: GridDocRow[]; tds
           </thead>
           <tbody>
             {rows.map((row) => {
-              const state = states[row.documentId];
+              const state = states[row.documentId] ?? initRowState(row, tdsCodes);
               const hasErrorFlags = row.flags.some((f) => f.severity === "error");
               return (
                 <tr
@@ -343,16 +390,22 @@ export default function ReviewGrid({ rows, tdsCodes }: { rows: GridDocRow[]; tds
                     />
                   </Cell>
                   <Cell width="w-24">
-                    <GNumber value={state.total} onChange={(v) => patchAndRecalc(row.documentId, (s) => ({ ...s, total: v }))} />
+                    <GNumber
+                      value={state.taxableValue}
+                      onChange={(v) => patchAndRecalc(row.documentId, (s) => ({ ...s, taxableValue: v }))}
+                    />
                   </Cell>
                   <Cell width="w-20">
-                    <GNumber value={state.igst} onChange={(v) => patch(row.documentId, (s) => ({ ...s, igst: v }))} />
+                    <GNumber value={state.igst} onChange={(v) => patchAndRecalc(row.documentId, (s) => applyGstEdit(s, "igst", v))} />
                   </Cell>
                   <Cell width="w-20">
-                    <GNumber value={state.cgst} onChange={(v) => patch(row.documentId, (s) => ({ ...s, cgst: v }))} />
+                    <GNumber value={state.cgst} onChange={(v) => patchAndRecalc(row.documentId, (s) => applyGstEdit(s, "cgst", v))} />
                   </Cell>
                   <Cell width="w-20">
-                    <GNumber value={state.sgst} onChange={(v) => patch(row.documentId, (s) => ({ ...s, sgst: v }))} />
+                    <GNumber value={state.sgst} onChange={(v) => patchAndRecalc(row.documentId, (s) => applyGstEdit(s, "sgst", v))} />
+                  </Cell>
+                  <Cell width="w-24">
+                    <GNumber value={state.total} onChange={(v) => patch(row.documentId, (s) => ({ ...s, total: v }))} />
                   </Cell>
                   <Cell width="w-32">
                     <GText value={state.bankAccount} onChange={(v) => patch(row.documentId, (s) => ({ ...s, bankAccount: v }))} />
@@ -396,12 +449,24 @@ export default function ReviewGrid({ rows, tdsCodes }: { rows: GridDocRow[]; tds
                       />
                     ) : (
                       <span className="block px-1 py-1 text-slate-500">
-                        {state.total !== null && state.tdsAmount !== null ? formatNumber(state.total - state.tdsAmount) : "—"}
+                        {(() => {
+                          const net =
+                            state.total !== null && state.tdsAmount !== null
+                              ? state.total - state.tdsAmount - (state.amountAlreadyPaid ?? 0)
+                              : null;
+                          return net !== null ? formatNumber(net) : "—";
+                        })()}
                       </span>
                     )}
                   </Cell>
                   <Cell width="w-24">
                     <GNumber value={state.tdsAmount} onChange={(v) => patch(row.documentId, (s) => ({ ...s, tdsAmount: v }))} />
+                  </Cell>
+                  <Cell width="w-24">
+                    <GNumber
+                      value={state.amountAlreadyPaid}
+                      onChange={(v) => patch(row.documentId, (s) => ({ ...s, amountAlreadyPaid: v }))}
+                    />
                   </Cell>
                   <Cell width="w-32">
                     <select

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { checkerDecide } from "../actions";
 import { computeGrossUp } from "@/lib/tds/gross-up";
+import { formatNumber } from "@/lib/format";
 import type { ExtractedFields } from "@/lib/extraction/schema";
 import type { PaymentRoute, TdsCode, Vendor } from "@/lib/supabase/types";
 
@@ -34,10 +35,12 @@ interface RowState {
   vendorPan: string;
   billedToName: string;
   natureOfService: string;
-  total: number | null;
+  taxableValue: number | null;
   igst: number | null;
   cgst: number | null;
   sgst: number | null;
+  total: number | null;
+  amountAlreadyPaid: number | null;
   bankAccount: string;
   ifsc: string;
   grossUp: boolean;
@@ -57,11 +60,45 @@ interface Outcome {
   error?: string;
 }
 
-function computeTds(state: Pick<RowState, "tdsRate" | "grossUp" | "netAmount" | "total" | "tdsAmount">): number | null {
-  if (state.tdsRate === null) return state.tdsAmount;
-  if (state.grossUp && state.netAmount !== null) return computeGrossUp(state.netAmount, state.tdsRate).tds;
-  if (state.total !== null) return Math.round((state.total * state.tdsRate) / 100);
-  return state.tdsAmount;
+function computeTotal(s: Pick<RowState, "taxableValue" | "cgst" | "sgst" | "igst">): number | null {
+  if (s.taxableValue === null) return null;
+  return s.taxableValue + (s.cgst ?? 0) + (s.sgst ?? 0) + (s.igst ?? 0);
+}
+
+function computeTds(
+  s: Pick<RowState, "tdsRate" | "grossUp" | "netAmount" | "taxableValue" | "total" | "tdsAmount">,
+): number | null {
+  if (s.tdsRate === null) return s.tdsAmount;
+  if (s.grossUp && s.netAmount !== null) return computeGrossUp(s.netAmount, s.tdsRate).tds;
+  const base = s.taxableValue ?? s.total;
+  if (base !== null) return Math.round((base * s.tdsRate) / 100);
+  return s.tdsAmount;
+}
+
+function computeNetPayable(s: Pick<RowState, "total" | "tdsAmount" | "amountAlreadyPaid">): number | null {
+  if (s.total === null || s.tdsAmount === null) return null;
+  return s.total - s.tdsAmount - (s.amountAlreadyPaid ?? 0);
+}
+
+/** Recomputes Total from taxable value + GST, then TDS from the result — the two auto-fills that chain together. */
+function recalcAmounts(s: RowState): RowState {
+  const total = computeTotal(s);
+  const withTotal = { ...s, total };
+  return { ...withTotal, tdsAmount: computeTds(withTotal) };
+}
+
+/**
+ * A vendor either charges IGST, or CGST+SGST together (never both) — and
+ * when they do charge CGST/SGST, the two are always equal. Editing one tax
+ * field keeps the others consistent instead of leaving it to the checker to
+ * remember the rule.
+ */
+function applyGstEdit(s: RowState, field: "cgst" | "sgst" | "igst", value: number | null): RowState {
+  const hasValue = value !== null && value !== 0;
+  if (field === "igst") {
+    return { ...s, igst: value, cgst: hasValue ? null : s.cgst, sgst: hasValue ? null : s.sgst };
+  }
+  return { ...s, cgst: value, sgst: value, igst: hasValue ? null : s.igst };
 }
 
 function initRowState(row: CheckerGridRow): RowState {
@@ -71,10 +108,12 @@ function initRowState(row: CheckerGridRow): RowState {
     vendorPan: row.fields.vendor.pan ?? "",
     billedToName: row.fields.billed_to.name ?? "",
     natureOfService: row.fields.service.description ?? "",
-    total: row.fields.amounts.total,
+    taxableValue: row.fields.amounts.taxable_value,
     igst: row.fields.amounts.igst,
     cgst: row.fields.amounts.cgst,
     sgst: row.fields.amounts.sgst,
+    total: row.fields.amounts.total,
+    amountAlreadyPaid: row.fields.amounts.amount_already_paid,
     bankAccount: row.fields.vendor.bank_account ?? "",
     ifsc: row.fields.vendor.ifsc ?? "",
     grossUp: row.grossUp,
@@ -89,10 +128,10 @@ function initRowState(row: CheckerGridRow): RowState {
 }
 
 function Cell({ children, width = "w-28" }: { children: React.ReactNode; width?: string }) {
-  return <td className={`border-r border-slate-100 px-1.5 py-1 align-top ${width}`}>{children}</td>;
+  return <td className={`border-r border-slate-100 px-2 py-1.5 align-top ${width}`}>{children}</td>;
 }
 
-const inputClass = "w-full rounded border border-slate-300 px-1.5 py-1 text-xs";
+const inputClass = "w-full rounded border border-slate-300 px-2 py-1.5 text-sm";
 
 function GText({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return <input type="text" value={value} onChange={(e) => onChange(e.target.value)} className={inputClass} />;
@@ -121,15 +160,23 @@ export default function CheckerGrid({ rows, tdsCodes }: { rows: CheckerGridRow[]
 
   const rowsById = useMemo(() => new Map(rows.map((r) => [r.reviewId, r])), [rows]);
 
+  function rowState(id: string): RowState {
+    const existing = states[id];
+    if (existing) return existing;
+    const row = rowsById.get(id);
+    return row ? initRowState(row) : ({} as RowState);
+  }
+
   function patch(id: string, updater: (s: RowState) => RowState) {
-    setStates((prev) => ({ ...prev, [id]: updater(prev[id]) }));
+    setStates((prev) => ({ ...prev, [id]: updater(prev[id] ?? rowState(id)) }));
   }
 
   function patchAndRecalc(id: string, updater: (s: RowState) => RowState) {
-    patch(id, (s) => {
-      const next = updater(s);
-      return { ...next, tdsAmount: computeTds(next) };
-    });
+    patch(id, (s) => recalcAmounts(updater(s)));
+  }
+
+  function handleRecalc(id: string) {
+    patch(id, (s) => recalcAmounts(s));
   }
 
   function toggle(id: string) {
@@ -158,7 +205,15 @@ export default function CheckerGrid({ rows, tdsCodes }: { rows: CheckerGridRow[]
       },
       billed_to: { ...row.fields.billed_to, name: state.billedToName.trim() || null },
       service: { ...row.fields.service, description: state.natureOfService.trim() || null },
-      amounts: { ...row.fields.amounts, total: state.total, igst: state.igst, cgst: state.cgst, sgst: state.sgst },
+      amounts: {
+        ...row.fields.amounts,
+        taxable_value: state.taxableValue,
+        total: state.total,
+        igst: state.igst,
+        cgst: state.cgst,
+        sgst: state.sgst,
+        amount_already_paid: state.amountAlreadyPaid,
+      },
     };
     return {
       reviewedFields: fields,
@@ -176,7 +231,7 @@ export default function CheckerGrid({ rows, tdsCodes }: { rows: CheckerGridRow[]
   }
 
   function handleReject(row: CheckerGridRow) {
-    const state = states[row.reviewId];
+    const state = rowState(row.reviewId);
     if (!state.comment.trim()) {
       setOutcomes([{ reviewId: row.reviewId, label: state.vendorName || row.originalFilename, status: "error", error: "A comment is required to reject." }]);
       return;
@@ -193,7 +248,7 @@ export default function CheckerGrid({ rows, tdsCodes }: { rows: CheckerGridRow[]
   }
 
   function handleApproveOne(row: CheckerGridRow) {
-    const state = states[row.reviewId];
+    const state = rowState(row.reviewId);
     startTransition(async () => {
       try {
         await decideOne(row, state, "approved");
@@ -214,8 +269,8 @@ export default function CheckerGrid({ rows, tdsCodes }: { rows: CheckerGridRow[]
       const results: Outcome[] = [];
       for (const id of ids) {
         const row = rowsById.get(id);
-        const state = states[id];
-        if (!row || !state) continue;
+        if (!row) continue;
+        const state = rowState(id);
         const label = state.vendorName || row.originalFilename;
         try {
           await decideOne(row, state, "approved");
@@ -269,10 +324,10 @@ export default function CheckerGrid({ rows, tdsCodes }: { rows: CheckerGridRow[]
       )}
 
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-left text-xs">
+        <table className="w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
-              <th className="w-8 px-2 py-2"></th>
+              <th className="sticky left-0 z-10 w-8 bg-slate-50 px-2 py-2"></th>
               <th className="px-2 py-2 font-medium">Client</th>
               <th className="px-2 py-2 font-medium">Vendor name</th>
               <th className="px-2 py-2 font-medium">Vendor GSTIN</th>
@@ -280,29 +335,31 @@ export default function CheckerGrid({ rows, tdsCodes }: { rows: CheckerGridRow[]
               <th className="px-2 py-2 font-medium">Billed to</th>
               <th className="px-2 py-2 font-medium">Client GSTIN</th>
               <th className="px-2 py-2 font-medium">Nature of service</th>
-              <th className="px-2 py-2 font-medium">Amount</th>
+              <th className="px-2 py-2 font-medium">Taxable value</th>
               <th className="px-2 py-2 font-medium">IGST</th>
               <th className="px-2 py-2 font-medium">CGST</th>
               <th className="px-2 py-2 font-medium">SGST</th>
+              <th className="px-2 py-2 font-medium">Total</th>
               <th className="px-2 py-2 font-medium">Bank account</th>
               <th className="px-2 py-2 font-medium">IFSC</th>
               <th className="px-2 py-2 font-medium">Gross-up</th>
-              <th className="px-2 py-2 font-medium">Net amt</th>
               <th className="px-2 py-2 font-medium">TDS code</th>
               <th className="px-2 py-2 font-medium">TDS rate</th>
               <th className="px-2 py-2 font-medium">TDS amt</th>
+              <th className="px-2 py-2 font-medium">Already paid</th>
+              <th className="px-2 py-2 font-medium">Net amt</th>
               <th className="px-2 py-2 font-medium">Payment route</th>
               <th className="px-2 py-2 font-medium">Comment</th>
-              <th className="px-2 py-2 font-medium">Decide</th>
-              <th className="px-2 py-2 font-medium"></th>
+              <th className="sticky right-0 z-10 bg-slate-50 px-2 py-2 font-medium">Decide</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => {
-              const state = states[row.reviewId];
+              const state = states[row.reviewId] ?? initRowState(row);
+              const netPayable = state.grossUp ? null : computeNetPayable(state);
               return (
                 <tr key={row.reviewId} className="border-b border-slate-100 last:border-0">
-                  <td className="px-2 py-1 align-top">
+                  <td className="sticky left-0 z-10 bg-white px-2 py-1 align-top">
                     <input
                       type="checkbox"
                       checked={selected.has(row.reviewId)}
@@ -310,59 +367,62 @@ export default function CheckerGrid({ rows, tdsCodes }: { rows: CheckerGridRow[]
                       aria-label={`Select ${row.originalFilename}`}
                     />
                   </td>
-                  <Cell width="w-32">
+                  <Cell width="w-36">
                     <span className="block px-1 py-1 text-slate-700">
                       {row.clientName} ({row.clientCode})
                     </span>
                   </Cell>
-                  <Cell width="w-40">
+                  <Cell width="w-48">
                     <GText value={state.vendorName} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, vendorName: v }))} />
                     {row.vendorPendingId && <span className="mt-0.5 block text-[10px] text-amber-700">new vendor (pending)</span>}
                   </Cell>
-                  <Cell width="w-32">
+                  <Cell width="w-36">
                     <GText value={state.vendorGstin} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, vendorGstin: v }))} />
                   </Cell>
-                  <Cell width="w-28">
+                  <Cell width="w-32">
                     <GText value={state.vendorPan} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, vendorPan: v }))} />
                   </Cell>
-                  <Cell width="w-36">
+                  <Cell width="w-40">
                     <GText value={state.billedToName} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, billedToName: v }))} />
                   </Cell>
-                  <Cell width="w-32">
+                  <Cell width="w-36">
                     <GText value={row.clientGstin ?? ""} onChange={() => {}} />
                   </Cell>
-                  <Cell width="w-40">
+                  <Cell width="w-48">
                     <GText value={state.natureOfService} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, natureOfService: v }))} />
                   </Cell>
+                  <Cell width="w-28">
+                    <GNumber
+                      value={state.taxableValue}
+                      onChange={(v) => patchAndRecalc(row.reviewId, (s) => ({ ...s, taxableValue: v }))}
+                    />
+                  </Cell>
                   <Cell width="w-24">
-                    <GNumber value={state.total} onChange={(v) => patchAndRecalc(row.reviewId, (s) => ({ ...s, total: v }))} />
+                    <GNumber value={state.igst} onChange={(v) => patchAndRecalc(row.reviewId, (s) => applyGstEdit(s, "igst", v))} />
                   </Cell>
-                  <Cell width="w-20">
-                    <GNumber value={state.igst} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, igst: v }))} />
+                  <Cell width="w-24">
+                    <GNumber value={state.cgst} onChange={(v) => patchAndRecalc(row.reviewId, (s) => applyGstEdit(s, "cgst", v))} />
                   </Cell>
-                  <Cell width="w-20">
-                    <GNumber value={state.cgst} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, cgst: v }))} />
+                  <Cell width="w-24">
+                    <GNumber value={state.sgst} onChange={(v) => patchAndRecalc(row.reviewId, (s) => applyGstEdit(s, "sgst", v))} />
                   </Cell>
-                  <Cell width="w-20">
-                    <GNumber value={state.sgst} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, sgst: v }))} />
+                  <Cell width="w-28">
+                    <GNumber value={state.total} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, total: v }))} />
                   </Cell>
-                  <Cell width="w-32">
+                  <Cell width="w-36">
                     <GText value={state.bankAccount} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, bankAccount: v }))} />
                   </Cell>
-                  <Cell width="w-24">
+                  <Cell width="w-28">
                     <GText value={state.ifsc} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, ifsc: v }))} />
                   </Cell>
-                  <Cell width="w-14">
+                  <Cell width="w-16">
                     <input
                       type="checkbox"
                       checked={state.grossUp}
                       onChange={(e) => patchAndRecalc(row.reviewId, (s) => ({ ...s, grossUp: e.target.checked }))}
                     />
                   </Cell>
-                  <Cell width="w-24">
-                    <GNumber value={state.netAmount} onChange={(v) => patchAndRecalc(row.reviewId, (s) => ({ ...s, netAmount: v }))} />
-                  </Cell>
-                  <Cell width="w-32">
+                  <Cell width="w-36">
                     <select
                       value={state.tdsCode}
                       onChange={(e) => {
@@ -380,13 +440,41 @@ export default function CheckerGrid({ rows, tdsCodes }: { rows: CheckerGridRow[]
                       ))}
                     </select>
                   </Cell>
-                  <Cell width="w-16">
+                  <Cell width="w-20">
                     <GNumber value={state.tdsRate} onChange={(v) => patchAndRecalc(row.reviewId, (s) => ({ ...s, tdsRate: v }))} />
                   </Cell>
-                  <Cell width="w-24">
+                  <Cell width="w-28">
                     <GNumber value={state.tdsAmount} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, tdsAmount: v }))} />
                   </Cell>
+                  <Cell width="w-28">
+                    <GNumber
+                      value={state.amountAlreadyPaid}
+                      onChange={(v) => patchAndRecalc(row.reviewId, (s) => ({ ...s, amountAlreadyPaid: v }))}
+                    />
+                  </Cell>
                   <Cell width="w-32">
+                    {state.grossUp ? (
+                      <GNumber
+                        value={state.netAmount}
+                        onChange={(v) => patchAndRecalc(row.reviewId, (s) => ({ ...s, netAmount: v }))}
+                      />
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <span className="block px-1 py-1.5 text-slate-500">
+                          {netPayable !== null ? formatNumber(netPayable) : "—"}
+                        </span>
+                        <button
+                          type="button"
+                          title="Recalculate from Taxable value, GST, TDS and Already paid"
+                          onClick={() => handleRecalc(row.reviewId)}
+                          className="rounded border border-slate-300 px-1.5 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                        >
+                          ↻
+                        </button>
+                      </div>
+                    )}
+                  </Cell>
+                  <Cell width="w-36">
                     <select
                       value={state.paymentRoute}
                       onChange={(e) => patch(row.reviewId, (s) => ({ ...s, paymentRoute: e.target.value as PaymentRoute }))}
@@ -399,22 +487,22 @@ export default function CheckerGrid({ rows, tdsCodes }: { rows: CheckerGridRow[]
                       <option value="pay_gross_recover">Gross &amp; recover</option>
                     </select>
                   </Cell>
-                  <Cell width="w-36">
+                  <Cell width="w-44">
                     <textarea
                       value={state.comment}
                       onChange={(e) => patch(row.reviewId, (s) => ({ ...s, comment: e.target.value }))}
                       placeholder="Required to reject"
                       rows={2}
-                      className="w-full rounded border border-slate-300 px-1 py-1 text-[11px]"
+                      className="w-full rounded border border-slate-300 px-2 py-1 text-sm"
                     />
                   </Cell>
-                  <Cell width="w-32">
-                    <div className="flex flex-col gap-1">
+                  <td className="sticky right-0 z-10 border-l border-slate-200 bg-white px-2 py-1.5 align-top">
+                    <div className="flex w-28 flex-col gap-1">
                       <button
                         type="button"
                         onClick={() => handleApproveOne(row)}
                         disabled={isPending}
-                        className="rounded bg-green-700 px-2 py-1 text-[11px] font-medium text-white hover:bg-green-800 disabled:opacity-50"
+                        className="rounded bg-green-700 px-2 py-1.5 text-xs font-medium text-white hover:bg-green-800 disabled:opacity-50"
                       >
                         Approve
                       </button>
@@ -422,17 +510,15 @@ export default function CheckerGrid({ rows, tdsCodes }: { rows: CheckerGridRow[]
                         type="button"
                         onClick={() => handleReject(row)}
                         disabled={isPending}
-                        className="rounded bg-red-700 px-2 py-1 text-[11px] font-medium text-white hover:bg-red-800 disabled:opacity-50"
+                        className="rounded bg-red-700 px-2 py-1.5 text-xs font-medium text-white hover:bg-red-800 disabled:opacity-50"
                       >
                         Reject
                       </button>
+                      <Link href={`/documents/${row.documentId}`} className="text-center text-xs text-slate-500 underline hover:text-slate-900">
+                        Open
+                      </Link>
                     </div>
-                  </Cell>
-                  <Cell width="w-16">
-                    <Link href={`/documents/${row.documentId}`} className="text-slate-500 underline hover:text-slate-900">
-                      Open
-                    </Link>
-                  </Cell>
+                  </td>
                 </tr>
               );
             })}

@@ -5,6 +5,27 @@ import { formatNumber } from "@/lib/format";
 import type { ExtractedFields } from "@/lib/extraction/schema";
 import type { PaymentRoute, TdsCode } from "@/lib/supabase/types";
 
+type Amounts = ExtractedFields["amounts"];
+
+/**
+ * A vendor either charges IGST, or CGST+SGST together (never both) — and
+ * when they do charge CGST/SGST, the two are always equal. Editing one tax
+ * field keeps the others consistent instead of leaving it to whoever's
+ * editing to remember the rule.
+ */
+function applyGstEdit(amounts: Amounts, field: "cgst" | "sgst" | "igst", value: number | null): Amounts {
+  const hasValue = value !== null && value !== 0;
+  if (field === "igst") {
+    return { ...amounts, igst: value, cgst: hasValue ? null : amounts.cgst, sgst: hasValue ? null : amounts.sgst };
+  }
+  return { ...amounts, cgst: value, sgst: value, igst: hasValue ? null : amounts.igst };
+}
+
+function computeGstTotal(amounts: Pick<Amounts, "taxable_value" | "cgst" | "sgst" | "igst">): number | null {
+  if (amounts.taxable_value === null) return null;
+  return amounts.taxable_value + (amounts.cgst ?? 0) + (amounts.sgst ?? 0) + (amounts.igst ?? 0);
+}
+
 export function TextInput({
   label,
   value,
@@ -19,6 +40,28 @@ export function TextInput({
       <label className="mb-1 block text-xs text-slate-500">{label}</label>
       <input
         type="text"
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+      />
+    </div>
+  );
+}
+
+export function DateInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string | null;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs text-slate-500">{label}</label>
+      <input
+        type="date"
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
@@ -82,8 +125,8 @@ export function EditableExtractedFields({
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <TextInput label="Type" value={fields.document.type} onChange={(v) => setFields((f) => ({ ...f, document: { ...f.document, type: v } }))} />
           <TextInput label="Invoice number" value={fields.document.invoice_number} onChange={(v) => setFields((f) => ({ ...f, document: { ...f.document, invoice_number: v } }))} />
-          <TextInput label="Invoice date" value={fields.document.invoice_date} onChange={(v) => setFields((f) => ({ ...f, document: { ...f.document, invoice_date: v } }))} />
-          <TextInput label="Due date" value={fields.document.due_date} onChange={(v) => setFields((f) => ({ ...f, document: { ...f.document, due_date: v } }))} />
+          <DateInput label="Invoice date" value={fields.document.invoice_date} onChange={(v) => setFields((f) => ({ ...f, document: { ...f.document, invoice_date: v } }))} />
+          <DateInput label="Due date" value={fields.document.due_date} onChange={(v) => setFields((f) => ({ ...f, document: { ...f.document, due_date: v } }))} />
           <TextInput label="IRN" value={fields.document.irn} onChange={(v) => setFields((f) => ({ ...f, document: { ...f.document, irn: v } }))} />
           <TextInput label="Currency" value={fields.document.currency} onChange={(v) => setFields((f) => ({ ...f, document: { ...f.document, currency: v } }))} />
         </div>
@@ -115,8 +158,8 @@ export function EditableExtractedFields({
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <TextInput label="Description" value={fields.service.description} onChange={(v) => setFields((f) => ({ ...f, service: { ...f.service, description: v } }))} />
           <TextInput label="SAC / HSN" value={fields.service.sac_hsn} onChange={(v) => setFields((f) => ({ ...f, service: { ...f.service, sac_hsn: v } }))} />
-          <TextInput label="Period from" value={fields.service.service_period_from} onChange={(v) => setFields((f) => ({ ...f, service: { ...f.service, service_period_from: v } }))} />
-          <TextInput label="Period to" value={fields.service.service_period_to} onChange={(v) => setFields((f) => ({ ...f, service: { ...f.service, service_period_to: v } }))} />
+          <DateInput label="Period from" value={fields.service.service_period_from} onChange={(v) => setFields((f) => ({ ...f, service: { ...f.service, service_period_from: v } }))} />
+          <DateInput label="Period to" value={fields.service.service_period_to} onChange={(v) => setFields((f) => ({ ...f, service: { ...f.service, service_period_to: v } }))} />
         </div>
 
         <div className="mt-4">
@@ -210,10 +253,46 @@ export function EditableExtractedFields({
       <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="mb-3 text-sm font-semibold text-slate-900">Amounts</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <NumberInput label="Taxable value" value={fields.amounts.taxable_value} onChange={(v) => setFields((f) => ({ ...f, amounts: { ...f.amounts, taxable_value: v } }))} />
-          <NumberInput label="CGST" value={fields.amounts.cgst} onChange={(v) => setFields((f) => ({ ...f, amounts: { ...f.amounts, cgst: v } }))} />
-          <NumberInput label="SGST" value={fields.amounts.sgst} onChange={(v) => setFields((f) => ({ ...f, amounts: { ...f.amounts, sgst: v } }))} />
-          <NumberInput label="IGST" value={fields.amounts.igst} onChange={(v) => setFields((f) => ({ ...f, amounts: { ...f.amounts, igst: v } }))} />
+          <NumberInput
+            label="Taxable value"
+            value={fields.amounts.taxable_value}
+            onChange={(v) =>
+              setFields((f) => {
+                const amounts = { ...f.amounts, taxable_value: v };
+                return { ...f, amounts: { ...amounts, total: computeGstTotal(amounts) } };
+              })
+            }
+          />
+          <NumberInput
+            label="CGST"
+            value={fields.amounts.cgst}
+            onChange={(v) =>
+              setFields((f) => {
+                const amounts = applyGstEdit(f.amounts, "cgst", v);
+                return { ...f, amounts: { ...amounts, total: computeGstTotal(amounts) } };
+              })
+            }
+          />
+          <NumberInput
+            label="SGST"
+            value={fields.amounts.sgst}
+            onChange={(v) =>
+              setFields((f) => {
+                const amounts = applyGstEdit(f.amounts, "sgst", v);
+                return { ...f, amounts: { ...amounts, total: computeGstTotal(amounts) } };
+              })
+            }
+          />
+          <NumberInput
+            label="IGST"
+            value={fields.amounts.igst}
+            onChange={(v) =>
+              setFields((f) => {
+                const amounts = applyGstEdit(f.amounts, "igst", v);
+                return { ...f, amounts: { ...amounts, total: computeGstTotal(amounts) } };
+              })
+            }
+          />
           <NumberInput label="Total" value={fields.amounts.total} onChange={(v) => setFields((f) => ({ ...f, amounts: { ...f.amounts, total: v } }))} />
           <NumberInput label="Already paid" value={fields.amounts.amount_already_paid} onChange={(v) => setFields((f) => ({ ...f, amounts: { ...f.amounts, amount_already_paid: v } }))} />
         </div>
@@ -252,11 +331,13 @@ export function LedgerTdsFields({
   tdsCodes,
   taxableValue,
   total,
+  amountAlreadyPaid,
 }: {
   state: LedgerTdsState;
   tdsCodes: TdsCode[];
   taxableValue: number | null;
   total: number | null;
+  amountAlreadyPaid: number | null;
 }) {
   const { expenseLedger, setExpenseLedger, tdsCode, setTdsCode, tdsRate, setTdsRate, tdsAmount, setTdsAmount, grossUp, setGrossUp, netAmount, setNetAmount } = state;
   const grossUpResult = grossUp && tdsRate !== null && netAmount !== null ? computeGrossUp(netAmount, tdsRate) : null;
@@ -264,7 +345,8 @@ export function LedgerTdsFields({
   // total (e.g. a 0%-GST invoice where they're the same number) — falling
   // back to `total` means Recalculate isn't a silent no-op for those.
   const tdsBase = taxableValue ?? total;
-  const netPayable = !grossUp && total !== null && tdsAmount !== null ? total - tdsAmount : null;
+  const netPayable =
+    !grossUp && total !== null && tdsAmount !== null ? total - tdsAmount - (amountAlreadyPaid ?? 0) : null;
 
   function recalculateTds() {
     if (tdsRate === null) return;
