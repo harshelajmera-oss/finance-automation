@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { submitReview } from "../actions";
 import { computeGrossUp } from "@/lib/tds/gross-up";
+import { formatNumber } from "@/lib/format";
 import type { ExtractedFields, ValidationFlag } from "@/lib/extraction/schema";
 import type { PaymentRoute, TdsCode, Vendor } from "@/lib/supabase/types";
 
@@ -277,7 +278,6 @@ export default function ReviewGrid({ rows, tdsCodes }: { rows: GridDocRow[]; tds
               <th className="px-2 py-2 font-medium">Vendor GSTIN</th>
               <th className="px-2 py-2 font-medium">Vendor PAN</th>
               <th className="px-2 py-2 font-medium">Billed to</th>
-              <th className="px-2 py-2 font-medium">Client GSTIN</th>
               <th className="px-2 py-2 font-medium">Nature of service</th>
               <th className="px-2 py-2 font-medium">Amount</th>
               <th className="px-2 py-2 font-medium">IGST</th>
@@ -286,9 +286,9 @@ export default function ReviewGrid({ rows, tdsCodes }: { rows: GridDocRow[]; tds
               <th className="px-2 py-2 font-medium">Bank account</th>
               <th className="px-2 py-2 font-medium">IFSC</th>
               <th className="px-2 py-2 font-medium">Gross-up</th>
-              <th className="px-2 py-2 font-medium">Net amt</th>
               <th className="px-2 py-2 font-medium">TDS code</th>
               <th className="px-2 py-2 font-medium">TDS rate</th>
+              <th className="px-2 py-2 font-medium">Net amt</th>
               <th className="px-2 py-2 font-medium">TDS amt</th>
               <th className="px-2 py-2 font-medium">Payment route</th>
               <th className="px-2 py-2 font-medium">Flags</th>
@@ -336,9 +336,6 @@ export default function ReviewGrid({ rows, tdsCodes }: { rows: GridDocRow[]; tds
                   <Cell width="w-36">
                     <GText value={state.billedToName} onChange={(v) => patch(row.documentId, (s) => ({ ...s, billedToName: v }))} />
                   </Cell>
-                  <Cell width="w-32">
-                    <GText value={row.clientGstin ?? ""} readOnly />
-                  </Cell>
                   <Cell width="w-40">
                     <GText
                       value={state.natureOfService}
@@ -370,12 +367,6 @@ export default function ReviewGrid({ rows, tdsCodes }: { rows: GridDocRow[]; tds
                       onChange={(e) => patchAndRecalc(row.documentId, (s) => ({ ...s, grossUp: e.target.checked }))}
                     />
                   </Cell>
-                  <Cell width="w-24">
-                    <GNumber
-                      value={state.netAmount}
-                      onChange={(v) => patchAndRecalc(row.documentId, (s) => ({ ...s, netAmount: v }))}
-                    />
-                  </Cell>
                   <Cell width="w-32">
                     <select
                       value={state.tdsCode}
@@ -396,6 +387,18 @@ export default function ReviewGrid({ rows, tdsCodes }: { rows: GridDocRow[]; tds
                   </Cell>
                   <Cell width="w-16">
                     <GNumber value={state.tdsRate} onChange={(v) => patchAndRecalc(row.documentId, (s) => ({ ...s, tdsRate: v }))} />
+                  </Cell>
+                  <Cell width="w-24">
+                    {state.grossUp ? (
+                      <GNumber
+                        value={state.netAmount}
+                        onChange={(v) => patchAndRecalc(row.documentId, (s) => ({ ...s, netAmount: v }))}
+                      />
+                    ) : (
+                      <span className="block px-1 py-1 text-slate-500">
+                        {state.total !== null && state.tdsAmount !== null ? formatNumber(state.total - state.tdsAmount) : "—"}
+                      </span>
+                    )}
                   </Cell>
                   <Cell width="w-24">
                     <GNumber value={state.tdsAmount} onChange={(v) => patch(row.documentId, (s) => ({ ...s, tdsAmount: v }))} />

@@ -73,6 +73,7 @@ export async function runExtraction(documentId: string) {
     if (error) throw new Error(error.message);
     revalidatePath(`/documents/${documentId}`);
     revalidatePath("/documents");
+    revalidatePath("/documents/review-grid");
     return;
   }
 
@@ -112,6 +113,7 @@ export async function runExtraction(documentId: string) {
 
   revalidatePath(`/documents/${documentId}`);
   revalidatePath("/documents");
+  revalidatePath("/documents/review-grid");
 }
 
 interface SubmitReviewPayload {
@@ -189,7 +191,10 @@ export async function submitReview(documentId: string, payload: SubmitReviewPayl
   if (error) throw new Error(error.message);
 
   revalidatePath(`/documents/${documentId}`);
+  revalidatePath("/documents");
+  revalidatePath("/documents/review-grid");
   revalidatePath("/documents/checker-queue");
+  revalidatePath("/documents/checker-grid");
 }
 
 interface CheckerEdits {
@@ -260,7 +265,11 @@ export async function checkerDecide(
   }
 
   revalidatePath("/documents/checker-queue");
+  revalidatePath("/documents/checker-grid");
+  revalidatePath("/documents/review-grid");
+  revalidatePath("/documents");
   revalidatePath("/documents/approved");
+  revalidatePath("/documents/my-attention");
   if (review) revalidatePath(`/documents/${review.document_id}`);
 }
 
@@ -303,4 +312,5 @@ export async function submitManualExtraction(documentId: string, fields: Extract
 
   revalidatePath(`/documents/${documentId}`);
   revalidatePath("/documents");
+  revalidatePath("/documents/review-grid");
 }

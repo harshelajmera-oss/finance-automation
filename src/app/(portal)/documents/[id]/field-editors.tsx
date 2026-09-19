@@ -247,16 +247,31 @@ export interface LedgerTdsState {
 }
 
 /** Expense ledger, TDS code/rate/amount, and gross-up — shared between maker and checker editing. */
-export function LedgerTdsFields({ state, tdsCodes, taxableValue }: { state: LedgerTdsState; tdsCodes: TdsCode[]; taxableValue: number | null }) {
+export function LedgerTdsFields({
+  state,
+  tdsCodes,
+  taxableValue,
+  total,
+}: {
+  state: LedgerTdsState;
+  tdsCodes: TdsCode[];
+  taxableValue: number | null;
+  total: number | null;
+}) {
   const { expenseLedger, setExpenseLedger, tdsCode, setTdsCode, tdsRate, setTdsRate, tdsAmount, setTdsAmount, grossUp, setGrossUp, netAmount, setNetAmount } = state;
   const grossUpResult = grossUp && tdsRate !== null && netAmount !== null ? computeGrossUp(netAmount, tdsRate) : null;
+  // Most invoices don't break GST out as a distinct "taxable value" from the
+  // total (e.g. a 0%-GST invoice where they're the same number) — falling
+  // back to `total` means Recalculate isn't a silent no-op for those.
+  const tdsBase = taxableValue ?? total;
+  const netPayable = !grossUp && total !== null && tdsAmount !== null ? total - tdsAmount : null;
 
   function recalculateTds() {
     if (tdsRate === null) return;
     if (grossUp && netAmount !== null) {
       setTdsAmount(computeGrossUp(netAmount, tdsRate).tds);
-    } else if (taxableValue !== null) {
-      setTdsAmount(Math.round((taxableValue * tdsRate) / 100));
+    } else if (tdsBase !== null) {
+      setTdsAmount(Math.round((tdsBase * tdsRate) / 100));
     }
   }
 
@@ -313,6 +328,14 @@ export function LedgerTdsFields({ state, tdsCodes, taxableValue }: { state: Ledg
         >
           Recalculate
         </button>
+        {!grossUp && (
+          <div>
+            <label className="mb-1 block text-xs text-slate-500">Net payable (auto)</label>
+            <p className="rounded-md bg-slate-50 px-2 py-1.5 text-sm text-slate-700">
+              {netPayable !== null ? formatNumber(netPayable) : "—"}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -159,6 +159,7 @@ export async function uploadPayoutSheet(formData: FormData): Promise<PayoutUploa
   }
 
   revalidatePath("/documents");
+  revalidatePath("/documents/review-grid");
 
   return {
     batchId,

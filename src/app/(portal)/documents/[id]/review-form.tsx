@@ -162,6 +162,7 @@ export default function ReviewForm({
         state={{ expenseLedger, setExpenseLedger, tdsCode, setTdsCode, tdsRate, setTdsRate, tdsAmount, setTdsAmount, grossUp, setGrossUp, netAmount, setNetAmount }}
         tdsCodes={tdsCodes}
         taxableValue={fields.amounts.taxable_value}
+        total={fields.amounts.total}
       />
 
       <PaymentRouteField value={paymentRoute} onChange={setPaymentRoute} />
