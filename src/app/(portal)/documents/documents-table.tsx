@@ -103,10 +103,19 @@ export default function DocumentsTable({
     });
   }
 
-  const pendingIds = useMemo(
-    () => documents.filter((d) => d.extraction_status === "pending").map((d) => d.id),
-    [documents],
-  );
+  const selectGroups = useMemo(() => {
+    const groups: { value: string; label: string; ids: string[] }[] = [
+      { value: "all", label: "Everything shown", ids: documents.map((d) => d.id) },
+      { value: "ext_pending", label: "Pending extraction", ids: documents.filter((d) => d.extraction_status === "pending").map((d) => d.id) },
+      { value: "ext_completed", label: "Extraction completed", ids: documents.filter((d) => d.extraction_status === "completed").map((d) => d.id) },
+      { value: "ext_failed", label: "Extraction failed", ids: documents.filter((d) => d.extraction_status === "failed").map((d) => d.id) },
+      { value: "rev_not_submitted", label: "Not submitted", ids: documents.filter((d) => d.review_status === "not_submitted").map((d) => d.id) },
+      { value: "rev_submitted", label: "Submitted", ids: documents.filter((d) => d.review_status === "submitted").map((d) => d.id) },
+      { value: "rev_approved", label: "Approved", ids: documents.filter((d) => d.review_status === "approved").map((d) => d.id) },
+      { value: "rev_rejected", label: "Rejected", ids: documents.filter((d) => d.review_status === "rejected").map((d) => d.id) },
+    ];
+    return groups;
+  }, [documents]);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -117,8 +126,9 @@ export default function DocumentsTable({
     });
   }
 
-  function selectAllPending() {
-    setSelected(new Set(pendingIds));
+  function selectGroup(value: string) {
+    const group = selectGroups.find((g) => g.value === value);
+    if (group) setSelected(new Set(group.ids));
   }
 
   function clearSelection() {
@@ -156,17 +166,43 @@ export default function DocumentsTable({
     });
   }
 
+  function handleArchiveSelected() {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    if (!confirm(`Archive ${ids.length} selected document${ids.length === 1 ? "" : "s"}? Nothing is deleted — they can be restored later.`)) return;
+
+    setRowError(null);
+    startRowTransition(async () => {
+      for (const id of ids) {
+        try {
+          await archiveDocument(id);
+        } catch (err) {
+          setRowError({ id, message: err instanceof Error ? err.message : "Could not archive." });
+        }
+      }
+      setSelected(new Set());
+      router.refresh();
+    });
+  }
+
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={selectAllPending}
-          disabled={pendingIds.length === 0}
-          className="text-sm text-slate-600 underline hover:text-slate-900 disabled:opacity-40 disabled:no-underline"
+        <select
+          value=""
+          onChange={(e) => {
+            if (e.target.value) selectGroup(e.target.value);
+            e.target.value = "";
+          }}
+          className="rounded-md border border-slate-300 px-2 py-1.5 text-sm text-slate-600"
         >
-          Select all pending ({pendingIds.length})
-        </button>
+          <option value="">Select all…</option>
+          {selectGroups.map((g) => (
+            <option key={g.value} value={g.value} disabled={g.ids.length === 0}>
+              {g.label} ({g.ids.length})
+            </option>
+          ))}
+        </select>
         {selected.size > 0 && (
           <>
             <button
@@ -174,13 +210,21 @@ export default function DocumentsTable({
               onClick={clearSelection}
               className="text-sm text-slate-500 underline hover:text-slate-900"
             >
-              Clear selection
+              Clear selection ({selected.size})
+            </button>
+            <button
+              type="button"
+              onClick={handleArchiveSelected}
+              disabled={isRowPending}
+              className="ml-auto rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+            >
+              {isRowPending ? "Archiving…" : `Archive selected (${selected.size})`}
             </button>
             <button
               type="button"
               onClick={handleExtractSelected}
               disabled={isPending}
-              className="ml-auto rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+              className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
             >
               {isPending ? "Extracting…" : `Extract selected (${selected.size})`}
             </button>

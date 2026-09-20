@@ -77,6 +77,7 @@ export default async function ReviewGridPage() {
       rows.push({
         documentId: doc.id,
         originalFilename: doc.original_filename,
+        hasFile: doc.storage_path !== null,
         clientName: doc.clients?.name ?? "—",
         clientCode: doc.clients?.code ?? "",
         clientGstin: doc.clients?.gstin ?? null,

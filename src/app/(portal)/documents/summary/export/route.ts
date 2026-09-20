@@ -24,6 +24,7 @@ export async function GET() {
     { header: "Client", key: "clientName", width: 30 },
     { header: "File", key: "fileName", width: 30 },
     { header: "Vendor", key: "vendorName", width: 30 },
+    { header: "Vendor GSTIN", key: "vendorGstin", width: 18 },
     { header: "Invoice No", key: "invoiceNumber", width: 18 },
     { header: "Invoice Date", key: "invoiceDate", width: 14 },
     { header: "Taxable Value", key: "taxableValue", width: 14 },
@@ -31,6 +32,8 @@ export async function GET() {
     { header: "SGST", key: "sgst", width: 12 },
     { header: "IGST", key: "igst", width: 12 },
     { header: "Total", key: "total", width: 14 },
+    { header: "TDS Amount", key: "tdsAmount", width: 14 },
+    { header: "Net Payable", key: "netPayable", width: 14 },
     { header: "Flags", key: "flagCount", width: 8 },
   ];
   sheet.getRow(1).font = { bold: true };
@@ -41,6 +44,7 @@ export async function GET() {
       clientName: `${row.clientName} (${row.clientCode})`,
       fileName: row.fileName,
       vendorName: row.vendorName ?? "",
+      vendorGstin: row.vendorGstin ?? "",
       invoiceNumber: row.invoiceNumber ?? "",
       invoiceDate: row.invoiceDate ?? "",
       taxableValue: row.taxableValue ?? "",
@@ -48,6 +52,8 @@ export async function GET() {
       sgst: row.sgst ?? "",
       igst: row.igst ?? "",
       total: row.total ?? "",
+      tdsAmount: row.tdsAmount ?? "",
+      netPayable: row.netPayable ?? "",
       flagCount: row.flagCount,
     });
   }

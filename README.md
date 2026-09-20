@@ -50,9 +50,12 @@ The build sequence has six steps.
 - **Bulk extraction**: checkboxes on the Documents list ("Select all pending" or pick individually)
   let you extract several documents in one go — they still run one at a time behind the scenes,
   with a progress count, since each is a separate call to Claude.
-- **Extraction summary**: a working, in-app view of every extracted document (vendor, invoice
-  number, amounts, flag count) with totals, plus a **Download as Excel** button. This is not the
-  spec's actual Google Sheets purchase register (that's Step 6) — it's a review aid for now.
+- **Extraction summary**: a working, in-app view of every extracted document (vendor, vendor
+  GSTIN, invoice number, amounts, TDS and net payable once a review exists, flag count) with
+  totals, plus a **Download as Excel** button. TDS/net payable come from the document's latest
+  review (Total − TDS − Already paid, same formula used everywhere else) and show "—" until one
+  exists. This is not the spec's actual Google Sheets purchase register (that's Step 6) — it's a
+  review aid for now.
 
 **Step 4 — maker review, checker approval, vendor master, TDS and gross-up:**
 
@@ -120,7 +123,9 @@ The build sequence has six steps.
   service, amount, IGST/CGST/SGST, bank account, IFSC, gross-up, TDS code/rate/amount, and payment
   route are all editable directly in the table, no need to open each document individually — the
   Approve grid also has a one-click "View invoice" button so the checker can see the actual file
-  without leaving the grid. Tick several rows and submit or approve them together — this is where
+  without leaving the grid — the Review grid has the same button for the maker. Both grids scroll
+  horizontally with the checkbox and action columns pinned in place, so they stay visible while
+  scrolling through the wide middle section. Tick several rows and submit or approve them together — this is where
   the spec's "bulk approve" for flag-free items lives. Anything needing the full document view (line
   items, IRN, notes, or a genuinely one-off fix) still has an "Open" link. This is also the natural home for bulk payout
   rows, which otherwise come in dozens at a time. A red-flagged row still needs an override reason
@@ -130,16 +135,23 @@ The build sequence has six steps.
   auto-fill for you — CGST and SGST always mirror each other and clear IGST (and vice versa, since a
   vendor charges one or the other, never both), and Total is computed live from Taxable value + GST
   while staying editable for a genuine rounding exception. TDS's "deduct at payment" calculation
-  uses Taxable value as its base, matching the spec's own rule.
+  uses Taxable value as its base, matching the spec's own rule. The Review grid also has its own
+  "Archive" per row and an "Archive selected" bulk action, for a row that was uploaded by mistake —
+  no need to go back to the Documents list first.
 - Documents can be **archived** by any signed-in team member — maker, checker or admin (Documents
-  list → "Archive") — when one was uploaded by mistake — wrong client, wrong file, a stray
-  duplicate. Nothing is ever actually deleted: an archived document just disappears from the normal
-  lists (a "Show archived" filter brings it back) while its row, file and every linked
-  extraction/review stay in the database, restorable at any time, with the archive/restore itself
+  list → "Archive", individually or for a whole selection at once) — when one was uploaded by
+  mistake — wrong client, wrong file, a stray duplicate. Nothing is ever actually deleted: an
+  archived document just disappears from the normal lists (a "Show archived" filter brings it back)
+  while its row, file and every linked extraction/review stay in the database, restorable at any
+  time, with the archive/restore itself
   logged to the audit trail like everything else. The same goes for correcting a document filed
   under the wrong client (Documents list → "Edit" next to the client name) — also logged, not
   silently overwritten. Opening this up to every role, not just admins, matches the "checker can
   edit anything" trust model already used elsewhere in this app.
+- The Documents list's bulk-selection dropdown now covers every status, not just "pending" —
+  select everything currently shown, or narrow to one extraction status (pending/completed/failed)
+  or review status (not submitted/submitted/approved/rejected) in one click, then extract or
+  archive the whole selection at once.
 
 Not yet built: email intake (needs a Google account connection), Google Drive filing, payments, and
 the Google Sheets/Tally exports.
