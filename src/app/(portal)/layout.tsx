@@ -37,6 +37,9 @@ export default async function PortalLayout({ children }: { children: React.React
             <Link href="/documents/approved" className="text-slate-600 hover:text-slate-900">
               Approved
             </Link>
+            <Link href="/documents/payments" className="text-slate-600 hover:text-slate-900">
+              Payments
+            </Link>
             {role === "maker" && (
               <Link href="/documents/review-grid" className="text-slate-600 hover:text-slate-900">
                 Review grid

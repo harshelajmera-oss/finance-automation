@@ -22,7 +22,15 @@ interface CurrentFilters {
   showAll?: string;
 }
 
-export default function ApprovedTable({ rows, currentFilters }: { rows: ApprovedRow[]; currentFilters: CurrentFilters }) {
+export default function ApprovedTable({
+  rows,
+  currentFilters,
+  outstandingByReview,
+}: {
+  rows: ApprovedRow[];
+  currentFilters: CurrentFilters;
+  outstandingByReview: Record<string, number | null>;
+}) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   function toggle(id: string) {
@@ -76,6 +84,12 @@ export default function ApprovedTable({ rows, currentFilters }: { rows: Approved
               >
                 Razorpay payout file (selected)
               </a>
+              <a
+                href={`/documents/payments/new?${selectedQuery}`}
+                className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+              >
+                Record payment ({selected.size})
+              </a>
             </>
           )}
           <a
@@ -116,6 +130,7 @@ export default function ApprovedTable({ rows, currentFilters }: { rows: Approved
               <th className="px-3 py-2 text-right font-medium">Net payable</th>
               <th className="px-3 py-2 font-medium">Route</th>
               <th className="px-3 py-2 font-medium">Downloaded</th>
+              <th className="px-3 py-2 font-medium">Paid</th>
             </tr>
           </thead>
           <tbody>
@@ -158,11 +173,21 @@ export default function ApprovedTable({ rows, currentFilters }: { rows: Approved
                     <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">New</span>
                   )}
                 </td>
+                <td className="px-3 py-2 text-slate-500">
+                  {(() => {
+                    const outstanding = outstandingByReview[r.reviewId];
+                    if (outstanding === null || outstanding === undefined) return "—";
+                    if (outstanding <= 0) {
+                      return <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">Paid in full</span>;
+                    }
+                    return `${formatNumber(outstanding)} owing`;
+                  })()}
+                </td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={13} className="px-3 py-6 text-center text-slate-400">
+                <td colSpan={14} className="px-3 py-6 text-center text-slate-400">
                   Nothing matches these filters.
                 </td>
               </tr>

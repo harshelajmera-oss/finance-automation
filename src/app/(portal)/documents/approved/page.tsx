@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchApprovedRows } from "@/lib/extraction/approved";
+import { fetchPaidAmountsByReview, outstandingAmount } from "@/lib/extraction/payments";
 import ApprovedTable from "./approved-table";
 
 interface SearchParams {
@@ -37,6 +38,12 @@ export default async function ApprovedPage({ searchParams }: { searchParams: Pro
     approvedTo: params.approvedTo || undefined,
     onlyNotExported: !showAll,
   });
+
+  const paidByReview = await fetchPaidAmountsByReview(
+    supabase,
+    rows.map((r) => r.reviewId),
+  );
+  const outstandingByReview = new Map(rows.map((r) => [r.reviewId, outstandingAmount(r, paidByReview)]));
 
   return (
     <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-10">
@@ -89,7 +96,7 @@ export default async function ApprovedPage({ searchParams }: { searchParams: Pro
         )}
       </form>
 
-      <ApprovedTable rows={rows} currentFilters={params} />
+      <ApprovedTable rows={rows} currentFilters={params} outstandingByReview={Object.fromEntries(outstandingByReview)} />
     </main>
   );
 }

@@ -109,6 +109,35 @@ export interface Review {
   exported_at: string | null;
 }
 
+export type PaymentMode = "neft" | "rtgs" | "imps" | "upi" | "card" | "auto_debit" | "employee_paid";
+
+export interface Payment {
+  id: string;
+  org_id: string;
+  payment_date: string;
+  mode: PaymentMode;
+  utr: string | null;
+  reference: string | null;
+  paid_from_ledger: string | null;
+  proof_url: string | null;
+  is_advance: boolean;
+  notes: string | null;
+  gross_amount: number;
+  tds_amount: number;
+  net_amount: number;
+  recorded_by: string | null;
+  created_at: string;
+}
+
+export interface PaymentAllocation {
+  id: string;
+  payment_id: string;
+  review_id: string;
+  amount: number;
+  gross_amount: number;
+  tds_amount: number;
+}
+
 export type BankChangeRequestStatus = "pending" | "confirmed" | "rejected";
 
 export interface VendorBankChangeRequest {

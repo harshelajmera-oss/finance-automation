@@ -115,6 +115,25 @@ The build sequence has six steps.
   payment. Included rows are marked as downloaded, same as the plain Excel export. This is a
   **download-only** feature — no live Razorpay API call is made; a direct-payout API integration
   was discussed and deferred until RazorpayX API access is set up on the firm's side.
+- **Payment records**, per SPEC.md's Payments section. From the Approved page, tick the rows a
+  payment covers (any mix of vendors/invoices — a payment can cover several at once, and a single
+  invoice can be paid across more than one payment record if it's paid in parts) and hit "Record
+  payment" to open a form for the actual payment details: payment date, mode (NEFT/RTGS/IMPS/UPI/
+  card/auto-debit/employee-paid), UTR, reference (Razorpay payout ID or bank batch ref), paid-from
+  ledger, a proof link, and an "this is an advance" flag that relaxes the rule that a payment date
+  can't be before the invoice date. Each selected row's amount defaults to what's still outstanding
+  on it (its payable amount minus anything already recorded against it) and is editable for a
+  part-payment. Gross and TDS are split proportionally across a part-payment so they still sum
+  correctly across the invoice's full history; a "pay gross and recover TDS" row instead records its
+  full amount as gross with zero TDS, since none is deducted from that payment. The Approved page's
+  new "Paid" column shows each row's outstanding balance or a "Paid in full" badge, and a "Payments"
+  nav tab lists payment history with what each one covered. Recording happens through a single
+  `record_payment` database function (never a direct insert) that re-checks the reviews are approved
+  and in the caller's org and enforces the payment-date rule server-side, then writes an audit-log
+  entry — the same SECURITY-DEFINER-gated-write pattern used elsewhere in this codebase. UTR
+  auto-matching from an uploaded bank statement and the TDS-recoverable ageing report (both later
+  items in the spec's Payments section) aren't built yet — UTR entry today is manual, which the spec
+  explicitly allows.
 - A maker's own **"Needs your attention"** view, listing their own rejected submissions so a
   rejection can't quietly go unnoticed.
 - **Bulk payout sheets** (many payees, no invoices — mentor payouts and similar): uploading an XLS
