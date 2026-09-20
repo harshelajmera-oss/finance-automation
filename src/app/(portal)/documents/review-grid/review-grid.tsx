@@ -54,7 +54,15 @@ interface Outcome {
   action: "submit" | "archive";
 }
 
-function computeTotal(s: Pick<RowState, "taxableValue" | "cgst" | "sgst" | "igst">): number | null {
+function computeTotal(
+  s: Pick<RowState, "taxableValue" | "cgst" | "sgst" | "igst" | "grossUp" | "netAmount" | "tdsRate" | "total">,
+): number | null {
+  if (s.grossUp) {
+    // Gross-up rows have no taxable value — the gross total is worked
+    // backwards from the fixed net amount instead, once both are known.
+    if (s.netAmount !== null && s.tdsRate !== null) return computeGrossUp(s.netAmount, s.tdsRate).gross;
+    return s.total;
+  }
   if (s.taxableValue === null) return null;
   return s.taxableValue + (s.cgst ?? 0) + (s.sgst ?? 0) + (s.igst ?? 0);
 }
