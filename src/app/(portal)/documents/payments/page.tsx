@@ -34,6 +34,15 @@ export default async function PaymentsPage() {
         page, select the rows a payment covers, and record it from there.
       </p>
 
+      <div className="mb-6">
+        <Link
+          href="/documents/payments/match-utr"
+          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        >
+          Match UTRs from a bank statement
+        </Link>
+      </div>
+
       <div className="space-y-4">
         {payments.map((p) => (
           <div key={p.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -45,7 +54,11 @@ export default async function PaymentsPage() {
               {p.isAdvance && (
                 <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">Advance</span>
               )}
-              {p.utr && <span className="text-slate-500">UTR {p.utr}</span>}
+              {p.utr ? (
+                <span className="text-slate-500">UTR {p.utr}</span>
+              ) : (
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">No UTR yet</span>
+              )}
               {p.reference && <span className="text-slate-500">Ref {p.reference}</span>}
               {p.paidFromLedger && <span className="text-slate-500">from {p.paidFromLedger}</span>}
               {p.proofUrl && (

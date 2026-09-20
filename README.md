@@ -130,10 +130,22 @@ The build sequence has six steps.
   nav tab lists payment history with what each one covered. Recording happens through a single
   `record_payment` database function (never a direct insert) that re-checks the reviews are approved
   and in the caller's org and enforces the payment-date rule server-side, then writes an audit-log
-  entry — the same SECURITY-DEFINER-gated-write pattern used elsewhere in this codebase. UTR
-  auto-matching from an uploaded bank statement and the TDS-recoverable ageing report (both later
-  items in the spec's Payments section) aren't built yet — UTR entry today is manual, which the spec
-  explicitly allows.
+  entry — the same SECURITY-DEFINER-gated-write pattern used elsewhere in this codebase.
+- **UTR matching from an uploaded bank statement**, from a "Match UTRs from a bank statement" link
+  on the Payments page. Upload the bank's payment status file or statement (.xlsx, .xls or .csv);
+  it's parsed deterministically (no AI, same approach as the bulk payout sheet) with tolerant header
+  matching for date/debit-amount/beneficiary-account/UTR/narration columns, since bank export formats
+  vary and this hasn't been checked against a real sample from the firm's bank or RazorpayX's own
+  payout report — **treat its column-matching as unverified until tried against a real file**, the
+  same caveat the Razorpay payout file carries in the other direction. When there's no dedicated
+  UTR/reference column, it falls back to pulling the longest alphanumeric token out of the narration
+  text, flagged "(guessed)" in the preview. Each statement row is matched against payments still
+  missing a UTR by amount, then narrowed by beneficiary account when one could be read; an
+  unambiguous match is proposed, a tie between several same-amount payments is left for you to pick
+  manually, and nothing is written to the database until you review the preview and hit confirm.
+  Confirming goes through a new `apply_utr_matches` database function, logged to the audit log same
+  as everything else. The TDS-recoverable ageing report for "pay gross and recover" vendors (the
+  other remaining item in the spec's Payments section) isn't built yet.
 - A maker's own **"Needs your attention"** view, listing their own rejected submissions so a
   rejection can't quietly go unnoticed.
 - **Bulk payout sheets** (many payees, no invoices — mentor payouts and similar): uploading an XLS

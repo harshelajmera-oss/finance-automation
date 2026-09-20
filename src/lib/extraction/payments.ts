@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PaymentMode } from "@/lib/supabase/types";
 import { payoutAmount, type ApprovedRow } from "@/lib/extraction/approved";
+import type { PendingPaymentForMatch } from "@/lib/extraction/bank-statement";
 
 /** What's still owed on this row after everything already recorded as paid against it. */
 export function outstandingAmount(row: ApprovedRow, paidByReview: Map<string, number>): number | null {
@@ -62,6 +63,46 @@ export async function recordPayment(supabase: SupabaseClient, input: RecordPayme
 
   if (error) return { error: error.message };
   return { id: data as string };
+}
+
+/** Payments with no UTR yet — candidates for auto-matching against an uploaded bank statement. */
+export async function fetchPendingPayments(supabase: SupabaseClient): Promise<PendingPaymentForMatch[]> {
+  const { data } = await supabase
+    .from("payments")
+    .select("id, payment_date, net_amount, payment_allocations ( reviews ( vendors ( name, bank_account ) ) )")
+    .is("utr", null)
+    .order("payment_date", { ascending: false });
+
+  return (data ?? []).map((row) => {
+    const allocations = (row.payment_allocations ?? []) as unknown as {
+      reviews: { vendors: { name: string; bank_account: string | null } | null } | null;
+    }[];
+    const vendorNames = new Set<string>();
+    const bankAccounts = new Set<string>();
+    for (const a of allocations) {
+      const vendor = a.reviews?.vendors;
+      if (vendor?.name) vendorNames.add(vendor.name);
+      if (vendor?.bank_account) bankAccounts.add(vendor.bank_account);
+    }
+    return {
+      id: row.id as string,
+      paymentDate: row.payment_date as string,
+      netAmount: row.net_amount as number,
+      vendorNames: Array.from(vendorNames),
+      bankAccounts: Array.from(bankAccounts),
+    };
+  });
+}
+
+export async function applyUtrMatches(
+  supabase: SupabaseClient,
+  matches: { paymentId: string; utr: string }[],
+): Promise<{ ok: true } | { error: string }> {
+  const { error } = await supabase.rpc("apply_utr_matches", {
+    p_matches: matches.map((m) => ({ payment_id: m.paymentId, utr: m.utr })),
+  });
+  if (error) return { error: error.message };
+  return { ok: true };
 }
 
 export interface PaymentHistoryLine {
