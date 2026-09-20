@@ -40,6 +40,17 @@ export default async function PortalLayout({ children }: { children: React.React
             <Link href="/documents/payments" className="text-slate-600 hover:text-slate-900">
               Payments
             </Link>
+            <details className="group relative">
+              <summary className="cursor-pointer list-none text-slate-600 marker:content-none hover:text-slate-900">Tally</summary>
+              <div className="absolute right-0 z-10 mt-2 w-56 rounded-md border border-slate-200 bg-white py-1 shadow-lg">
+                <Link href="/documents/tally/ledgers" className="block px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+                  New vendor ledgers
+                </Link>
+                <Link href="/documents/tally/vouchers" className="block px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+                  Purchase / journal vouchers
+                </Link>
+              </div>
+            </details>
             {role === "maker" && (
               <Link href="/documents/review-grid" className="text-slate-600 hover:text-slate-900">
                 Review grid

@@ -146,6 +146,27 @@ The build sequence has six steps.
   Confirming goes through a new `apply_utr_matches` database function, logged to the audit log same
   as everything else. The TDS-recoverable ageing report for "pay gross and recover" vendors (the
   other remaining item in the spec's Payments section) isn't built yet.
+- **Tally XML exports**, the first half of SPEC.md's Outputs section (a "Tally" nav menu, two pages).
+  "New vendor ledgers" generates ledger-creation XML for approved vendors under Sundry Creditors
+  (split Domestic/Foreign by whether a GSTIN or PAN is on file — the exact parent-group names are a
+  guess at the firm's chart of accounts, verify against the real one). "Purchase / journal vouchers"
+  generates one journal voucher per approved invoice — expense, GST input (named per Indian financial
+  year, e.g. "Input CGST FY26-27"), TDS and vendor lines, with invoice no. and service month in the
+  narration — and needs the vendor's ledger already imported first, or Tally will reject the voucher
+  for an unknown ledger name. A "pay gross and recover TDS" row follows the spec's own worked example
+  exactly: TDS goes to a "TDS Recoverable" debit line instead of reducing what's credited to the
+  vendor, and the vendor is credited the full invoice amount. A row with an advance already netted
+  off gets two extra lines clearing an assumed "Advance to &lt;vendor&gt;" ledger — rename that in the
+  XML if the original advance was booked elsewhere. A row missing a usable vendor ledger name, expense
+  ledger, or (when TDS applies) a TDS code with no Tally ledger name set, is excluded from the file
+  with the reason shown, rather than guessed at. Each export marks what it included so it isn't
+  re-exported by accident; an admin can override that to re-export. Both exports are logged to the
+  audit log. Payment vouchers, prepaid transfers, and the live Google Sheets purchase register (the
+  rest of the Outputs section) aren't built yet. **This has not been tested against a real TallyPrime
+  instance** — there isn't one available in this environment — so treat every generated file as a
+  draft: import into a test/backup company first and check the entries land correctly (in particular
+  the debit-is-negative-amount sign convention used throughout) before ever pointing this at live
+  books.
 - A maker's own **"Needs your attention"** view, listing their own rejected submissions so a
   rejection can't quietly go unnoticed.
 - **Bulk payout sheets** (many payees, no invoices — mentor payouts and similar): uploading an XLS

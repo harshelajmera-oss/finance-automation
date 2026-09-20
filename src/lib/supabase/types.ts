@@ -71,6 +71,7 @@ export interface Vendor {
   approved_by: string | null;
   created_at: string;
   updated_at: string;
+  tally_exported_at: string | null;
 }
 
 export interface TdsCode {
@@ -107,6 +108,7 @@ export interface Review {
   checker_edited_fields: import("@/lib/extraction/schema").ExtractedFields | null;
   decided_at: string | null;
   exported_at: string | null;
+  tally_exported_at: string | null;
 }
 
 export type PaymentMode = "neft" | "rtgs" | "imps" | "upi" | "card" | "auto_debit" | "employee_paid";
