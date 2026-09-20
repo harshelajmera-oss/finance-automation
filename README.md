@@ -100,6 +100,21 @@ The build sequence has six steps.
   after new approvals doesn't repeat rows already sent for payment — every export (filtered, full,
   or a hand-picked selection) marks the rows it included as downloaded. The checker queue has its
   own, simpler export too.
+- A **Razorpay bulk payout file** download, alongside the plain Excel export on the Approved page
+  (maker, checker or admin can generate it, same filtered/selected/all choice). It follows
+  Razorpay's published Bulk Payouts (composite) column format — Name, Fund Account Type/Number/IFSC,
+  Amount (in paise), Currency, Mode, Purpose, Reference Id, Narration — on a "Payouts" sheet, with a
+  second "Excluded rows" sheet listing anything left out and why, and a third sheet of notes
+  (including a reminder to diff the column headers against RazorpayX's own current sample file
+  before the first real upload, since we can't fetch razorpay.com's live docs from this
+  environment to verify the format hasn't changed). Only rows routed "Pay via portal" or "Pay
+  gross and recover TDS" are eligible; rows already paid outside the portal (card/employee/
+  auto-debit) are excluded as not-applicable, and rows missing a vendor PAN, bank account or IFSC
+  are excluded as on-hold, per the spec's payment-batch rule. "Pay gross and recover TDS" rows pay
+  the full invoice total, not net of TDS — the TDS is recovered separately, not deducted from this
+  payment. Included rows are marked as downloaded, same as the plain Excel export. This is a
+  **download-only** feature — no live Razorpay API call is made; a direct-payout API integration
+  was discussed and deferred until RazorpayX API access is set up on the firm's side.
 - A maker's own **"Needs your attention"** view, listing their own rejected submissions so a
   rejection can't quietly go unnoticed.
 - **Bulk payout sheets** (many payees, no invoices — mentor payouts and similar): uploading an XLS

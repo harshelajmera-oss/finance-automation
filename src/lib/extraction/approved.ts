@@ -125,3 +125,33 @@ export async function fetchApprovedRows(supabase: SupabaseClient, filters?: Appr
     return true;
   });
 }
+
+// Routes where the portal itself moves the money (directly, or gross with TDS
+// recovered later) — the only ones that belong in a payment batch. "card",
+// "employee" and "auto_debit" were already paid outside the portal, so per
+// spec they never enter a batch.
+const PAYOUT_ELIGIBLE_ROUTES = new Set(["portal", "pay_gross_recover"]);
+
+export function isPayoutEligibleRoute(route: string): boolean {
+  return PAYOUT_ELIGIBLE_ROUTES.has(route);
+}
+
+/**
+ * The amount that should actually move for this row. "pay_gross_recover"
+ * pays the full invoice total — TDS is recovered separately later, not
+ * deducted from this payment — every other route pays the net-of-TDS figure.
+ */
+export function payoutAmount(row: ApprovedRow): number | null {
+  if (row.paymentRoute === "pay_gross_recover") return row.total;
+  return row.netPayable;
+}
+
+/** Spec rule: items on hold (PAN missing, bank details unverified) cannot enter a payment batch. */
+export function payoutHoldReason(row: ApprovedRow): string | null {
+  if (!row.bankAccount) return "Bank account missing";
+  if (!row.ifsc) return "IFSC missing";
+  if (!row.vendorPan) return "Vendor PAN missing";
+  const amount = payoutAmount(row);
+  if (amount === null || amount <= 0) return "Payable amount is zero or unknown";
+  return null;
+}

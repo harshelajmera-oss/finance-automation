@@ -61,14 +61,22 @@ export default function ApprovedTable({ rows, currentFilters }: { rows: Approved
         <button type="button" onClick={toggleAll} className="text-sm text-slate-600 underline hover:text-slate-900" disabled={rows.length === 0}>
           {selected.size === rows.length && rows.length > 0 ? "Clear selection" : `Select all (${rows.length})`}
         </button>
-        <div className="ml-auto flex gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           {selected.size > 0 && (
-            <a
-              href={`/documents/approved/export?${selectedQuery}`}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
-              Download selected ({selected.size})
-            </a>
+            <>
+              <a
+                href={`/documents/approved/export?${selectedQuery}`}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Download selected ({selected.size})
+              </a>
+              <a
+                href={`/documents/approved/razorpay-export?${selectedQuery}`}
+                className="rounded-md border border-indigo-300 px-3 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
+              >
+                Razorpay payout file (selected)
+              </a>
+            </>
           )}
           <a
             href={`/documents/approved/export${filterQuery ? `?${filterQuery}` : ""}`}
@@ -76,8 +84,19 @@ export default function ApprovedTable({ rows, currentFilters }: { rows: Approved
           >
             Download {filterQuery ? "filtered" : "all"} as Excel
           </a>
+          <a
+            href={`/documents/approved/razorpay-export${filterQuery ? `?${filterQuery}` : ""}`}
+            className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500"
+          >
+            Razorpay payout file ({filterQuery ? "filtered" : "all"})
+          </a>
         </div>
       </div>
+      <p className="mb-3 text-xs text-slate-500">
+        The Razorpay payout file only includes rows routed &quot;Pay via portal&quot; or &quot;Pay gross and recover TDS&quot;
+        with a vendor PAN, bank account and IFSC on file — rows already paid outside the portal, or missing those
+        details, are listed separately in the file under &quot;Excluded rows&quot; instead of being paid.
+      </p>
 
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-left text-sm">
