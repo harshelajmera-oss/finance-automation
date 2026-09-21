@@ -52,6 +52,7 @@ export type TdsTreatment = "deduct" | "pay_gross_recover";
 export interface Vendor {
   id: string;
   org_id: string;
+  client_id: string;
   name: string;
   tally_ledger_name: string | null;
   gstin: string | null;
@@ -72,6 +73,30 @@ export interface Vendor {
   created_at: string;
   updated_at: string;
   tally_exported_at: string | null;
+}
+
+export interface ExpenseLedger {
+  id: string;
+  org_id: string;
+  client_id: string;
+  name: string;
+  category: string | null;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GstVendorMasterEntry {
+  id: string;
+  org_id: string;
+  client_id: string;
+  gstin: string;
+  party_name: string;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface TdsCode {

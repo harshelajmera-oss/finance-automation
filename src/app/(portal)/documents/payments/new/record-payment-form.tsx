@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { submitPayment } from "../actions";
+import { allocationAmounts } from "@/lib/payments/allocation";
 import { formatDate, formatNumber } from "@/lib/format";
 import type { PaymentMode } from "@/lib/supabase/types";
 
@@ -34,22 +35,6 @@ const inputClass = "w-full rounded-md border border-slate-300 px-2 py-1.5 text-s
 function todayIso(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function allocationAmounts(row: PayableRow, amount: number): { grossAmount: number; tdsAmount: number } {
-  if (row.paymentRoute === "pay_gross_recover") {
-    // The full amount is paid out; TDS is recovered separately, not deducted here.
-    return { grossAmount: amount, tdsAmount: 0 };
-  }
-  const fullPayable = row.outstanding !== null ? row.outstanding + row.paidSoFar : null;
-  if (fullPayable && fullPayable > 0 && row.total !== null) {
-    const fraction = amount / fullPayable;
-    return {
-      grossAmount: Math.round(row.total * fraction * 100) / 100,
-      tdsAmount: Math.round((row.tdsAmount ?? 0) * fraction * 100) / 100,
-    };
-  }
-  return { grossAmount: amount, tdsAmount: 0 };
 }
 
 export default function RecordPaymentForm({ rows }: { rows: PayableRow[] }) {

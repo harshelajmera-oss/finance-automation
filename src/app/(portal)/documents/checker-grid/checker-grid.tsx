@@ -7,11 +7,12 @@ import { checkerDecide, getDocumentViewUrl } from "../actions";
 import { computeGrossUp } from "@/lib/tds/gross-up";
 import { formatNumber } from "@/lib/format";
 import type { ExtractedFields } from "@/lib/extraction/schema";
-import type { PaymentRoute, TdsCode, Vendor } from "@/lib/supabase/types";
+import type { ExpenseLedger, PaymentRoute, TdsCode, Vendor } from "@/lib/supabase/types";
 
 export interface CheckerGridRow {
   reviewId: string;
   documentId: string;
+  clientId: string;
   originalFilename: string;
   hasFile: boolean;
   clientName: string;
@@ -36,6 +37,7 @@ interface RowState {
   vendorPan: string;
   billedToName: string;
   natureOfService: string;
+  expenseLedgerName: string;
   taxableValue: number | null;
   igst: number | null;
   cgst: number | null;
@@ -117,6 +119,7 @@ function initRowState(row: CheckerGridRow): RowState {
     vendorPan: row.fields.vendor.pan ?? "",
     billedToName: row.fields.billed_to.name ?? "",
     natureOfService: row.fields.service.description ?? "",
+    expenseLedgerName: row.expenseLedger ?? "",
     taxableValue: row.fields.amounts.taxable_value,
     igst: row.fields.amounts.igst,
     cgst: row.fields.amounts.cgst,
@@ -136,8 +139,13 @@ function initRowState(row: CheckerGridRow): RowState {
   };
 }
 
-function Cell({ children, width = "w-28" }: { children: React.ReactNode; width?: string }) {
-  return <td className={`border-r border-slate-100 px-2 py-1.5 align-top ${width}`}>{children}</td>;
+function Field({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={className}>
+      <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-400">{label}</label>
+      {children}
+    </div>
+  );
 }
 
 const inputClass = "w-full rounded border border-slate-300 px-2 py-1.5 text-sm";
@@ -158,7 +166,15 @@ function GNumber({ value, onChange }: { value: number | null; onChange: (v: numb
   );
 }
 
-export default function CheckerGrid({ rows, tdsCodes }: { rows: CheckerGridRow[]; tdsCodes: TdsCode[] }) {
+export default function CheckerGrid({
+  rows,
+  tdsCodes,
+  expenseLedgersByClient,
+}: {
+  rows: CheckerGridRow[];
+  tdsCodes: TdsCode[];
+  expenseLedgersByClient: Record<string, ExpenseLedger[]>;
+}) {
   const router = useRouter();
   const [states, setStates] = useState<Record<string, RowState>>(() =>
     Object.fromEntries(rows.map((r) => [r.reviewId, initRowState(r)])),
@@ -235,7 +251,7 @@ export default function CheckerGrid({ rows, tdsCodes }: { rows: CheckerGridRow[]
     };
     return {
       reviewedFields: fields,
-      expenseLedger: row.expenseLedger ?? "",
+      expenseLedger: state.expenseLedgerName || "",
       tdsCode: state.tdsCode || null,
       tdsRate: state.tdsRate,
       tdsAmount: state.tdsAmount,
@@ -341,217 +357,208 @@ export default function CheckerGrid({ rows, tdsCodes }: { rows: CheckerGridRow[]
         </ul>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
-            <tr>
-              <th className="sticky left-0 z-10 w-8 bg-slate-50 px-2 py-2"></th>
-              <th className="px-2 py-2 font-medium">Client</th>
-              <th className="px-2 py-2 font-medium">Vendor name</th>
-              <th className="px-2 py-2 font-medium">Vendor GSTIN</th>
-              <th className="px-2 py-2 font-medium">Vendor PAN</th>
-              <th className="px-2 py-2 font-medium">Billed to</th>
-              <th className="px-2 py-2 font-medium">Client GSTIN</th>
-              <th className="px-2 py-2 font-medium">Nature of service</th>
-              <th className="px-2 py-2 font-medium">Taxable value</th>
-              <th className="px-2 py-2 font-medium">IGST</th>
-              <th className="px-2 py-2 font-medium">CGST</th>
-              <th className="px-2 py-2 font-medium">SGST</th>
-              <th className="px-2 py-2 font-medium">Total</th>
-              <th className="px-2 py-2 font-medium">Bank account</th>
-              <th className="px-2 py-2 font-medium">IFSC</th>
-              <th className="px-2 py-2 font-medium">Gross-up</th>
-              <th className="px-2 py-2 font-medium">TDS code</th>
-              <th className="px-2 py-2 font-medium">TDS rate</th>
-              <th className="px-2 py-2 font-medium">TDS amt</th>
-              <th className="px-2 py-2 font-medium">Already paid</th>
-              <th className="px-2 py-2 font-medium">Net amt</th>
-              <th className="px-2 py-2 font-medium">Payment route</th>
-              <th className="px-2 py-2 font-medium">Comment</th>
-              <th className="sticky right-0 z-10 bg-slate-50 px-2 py-2 font-medium">Decide</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => {
-              const state = states[row.reviewId] ?? initRowState(row);
-              const netPayable = state.grossUp ? null : computeNetPayable(state);
-              return (
-                <tr key={row.reviewId} className="border-b border-slate-100 last:border-0">
-                  <td className="sticky left-0 z-10 bg-white px-2 py-1 align-top">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(row.reviewId)}
-                      onChange={() => toggle(row.reviewId)}
-                      aria-label={`Select ${row.originalFilename}`}
-                    />
-                  </td>
-                  <Cell width="w-36">
-                    <span className="block px-1 py-1 text-slate-700">
-                      {row.clientName} ({row.clientCode})
-                    </span>
-                  </Cell>
-                  <Cell width="w-48">
-                    <GText value={state.vendorName} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, vendorName: v }))} />
-                    {row.vendorPendingId && <span className="mt-0.5 block text-[10px] text-amber-700">new vendor (pending)</span>}
-                  </Cell>
-                  <Cell width="w-36">
-                    <GText value={state.vendorGstin} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, vendorGstin: v }))} />
-                  </Cell>
-                  <Cell width="w-32">
-                    <GText value={state.vendorPan} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, vendorPan: v }))} />
-                  </Cell>
-                  <Cell width="w-40">
-                    <GText value={state.billedToName} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, billedToName: v }))} />
-                  </Cell>
-                  <Cell width="w-36">
-                    <GText value={row.clientGstin ?? ""} onChange={() => {}} />
-                  </Cell>
-                  <Cell width="w-48">
-                    <GText value={state.natureOfService} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, natureOfService: v }))} />
-                  </Cell>
-                  <Cell width="w-28">
-                    <GNumber
-                      value={state.taxableValue}
-                      onChange={(v) => patchAndRecalc(row.reviewId, (s) => ({ ...s, taxableValue: v }))}
-                    />
-                  </Cell>
-                  <Cell width="w-24">
-                    <GNumber value={state.igst} onChange={(v) => patchAndRecalc(row.reviewId, (s) => applyGstEdit(s, "igst", v))} />
-                  </Cell>
-                  <Cell width="w-24">
-                    <GNumber value={state.cgst} onChange={(v) => patchAndRecalc(row.reviewId, (s) => applyGstEdit(s, "cgst", v))} />
-                  </Cell>
-                  <Cell width="w-24">
-                    <GNumber value={state.sgst} onChange={(v) => patchAndRecalc(row.reviewId, (s) => applyGstEdit(s, "sgst", v))} />
-                  </Cell>
-                  <Cell width="w-28">
-                    <GNumber value={state.total} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, total: v }))} />
-                  </Cell>
-                  <Cell width="w-36">
-                    <GText value={state.bankAccount} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, bankAccount: v }))} />
-                  </Cell>
-                  <Cell width="w-28">
-                    <GText value={state.ifsc} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, ifsc: v }))} />
-                  </Cell>
-                  <Cell width="w-16">
-                    <input
-                      type="checkbox"
-                      checked={state.grossUp}
-                      onChange={(e) => patchAndRecalc(row.reviewId, (s) => ({ ...s, grossUp: e.target.checked }))}
-                    />
-                  </Cell>
-                  <Cell width="w-36">
-                    <select
-                      value={state.tdsCode}
-                      onChange={(e) => {
-                        const code = e.target.value;
-                        const match = tdsCodes.find((c) => c.code === code);
-                        patchAndRecalc(row.reviewId, (s) => ({ ...s, tdsCode: code, tdsRate: match ? match.default_rate : s.tdsRate }));
-                      }}
-                      className={inputClass}
+      <div className="space-y-4">
+        {rows.map((row) => {
+          const state = states[row.reviewId] ?? initRowState(row);
+          const netPayable = state.grossUp ? null : computeNetPayable(state);
+          const expenseLedgers = expenseLedgersByClient[row.clientId] ?? [];
+          return (
+            <div key={row.reviewId} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="mb-3 flex flex-wrap items-center gap-3 border-b border-slate-100 pb-3">
+                <input
+                  type="checkbox"
+                  checked={selected.has(row.reviewId)}
+                  onChange={() => toggle(row.reviewId)}
+                  aria-label={`Select ${row.originalFilename}`}
+                />
+                <span className="font-medium text-slate-900">
+                  {row.clientName} ({row.clientCode})
+                </span>
+                <span className="text-sm text-slate-400">{row.originalFilename}</span>
+                {row.vendorPendingId && (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">new vendor (pending)</span>
+                )}
+                <div className="ml-auto flex gap-2">
+                  {row.hasFile && (
+                    <button
+                      type="button"
+                      onClick={() => handleView(row.documentId)}
+                      disabled={viewingId === row.documentId}
+                      className="rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                     >
-                      <option value="">— none —</option>
-                      {tdsCodes.map((c) => (
-                        <option key={c.id} value={c.code}>
-                          {c.code} ({c.default_rate}%)
-                        </option>
-                      ))}
-                    </select>
-                  </Cell>
-                  <Cell width="w-20">
-                    <GNumber value={state.tdsRate} onChange={(v) => patchAndRecalc(row.reviewId, (s) => ({ ...s, tdsRate: v }))} />
-                  </Cell>
-                  <Cell width="w-28">
-                    <GNumber value={state.tdsAmount} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, tdsAmount: v }))} />
-                  </Cell>
-                  <Cell width="w-28">
+                      {viewingId === row.documentId ? "Opening…" : "View invoice"}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleApproveOne(row)}
+                    disabled={isPending}
+                    className="rounded bg-green-700 px-2 py-1 text-xs font-medium text-white hover:bg-green-800 disabled:opacity-50"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleReject(row)}
+                    disabled={isPending}
+                    className="rounded bg-red-700 px-2 py-1 text-xs font-medium text-white hover:bg-red-800 disabled:opacity-50"
+                  >
+                    Reject
+                  </button>
+                  <Link
+                    href={`/documents/${row.documentId}`}
+                    className="rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    Open
+                  </Link>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+                <Field label="Vendor name">
+                  <GText value={state.vendorName} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, vendorName: v }))} />
+                </Field>
+                <Field label="Vendor GSTIN">
+                  <GText value={state.vendorGstin} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, vendorGstin: v }))} />
+                </Field>
+                <Field label="Vendor PAN">
+                  <GText value={state.vendorPan} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, vendorPan: v }))} />
+                </Field>
+                <Field label="Billed to">
+                  <GText value={state.billedToName} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, billedToName: v }))} />
+                </Field>
+                <Field label="Client GSTIN">
+                  <GText value={row.clientGstin ?? ""} onChange={() => {}} />
+                </Field>
+                <Field label="Nature of service">
+                  <GText value={state.natureOfService} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, natureOfService: v }))} />
+                </Field>
+                <Field label="Expense ledger">
+                  <select
+                    value={state.expenseLedgerName}
+                    onChange={(e) => patch(row.reviewId, (s) => ({ ...s, expenseLedgerName: e.target.value }))}
+                    className={inputClass}
+                  >
+                    <option value="">— none —</option>
+                    {expenseLedgers.map((l) => (
+                      <option key={l.id} value={l.name}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="Taxable value">
+                  <GNumber
+                    value={state.taxableValue}
+                    onChange={(v) => patchAndRecalc(row.reviewId, (s) => ({ ...s, taxableValue: v }))}
+                  />
+                </Field>
+                <Field label="IGST">
+                  <GNumber value={state.igst} onChange={(v) => patchAndRecalc(row.reviewId, (s) => applyGstEdit(s, "igst", v))} />
+                </Field>
+                <Field label="CGST">
+                  <GNumber value={state.cgst} onChange={(v) => patchAndRecalc(row.reviewId, (s) => applyGstEdit(s, "cgst", v))} />
+                </Field>
+                <Field label="SGST">
+                  <GNumber value={state.sgst} onChange={(v) => patchAndRecalc(row.reviewId, (s) => applyGstEdit(s, "sgst", v))} />
+                </Field>
+                <Field label="Total">
+                  <GNumber value={state.total} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, total: v }))} />
+                </Field>
+                <Field label="Bank account">
+                  <GText value={state.bankAccount} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, bankAccount: v }))} />
+                </Field>
+                <Field label="IFSC">
+                  <GText value={state.ifsc} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, ifsc: v }))} />
+                </Field>
+
+                <Field label="Gross-up">
+                  <input
+                    type="checkbox"
+                    checked={state.grossUp}
+                    onChange={(e) => patchAndRecalc(row.reviewId, (s) => ({ ...s, grossUp: e.target.checked }))}
+                    className="mt-1.5"
+                  />
+                </Field>
+                <Field label="TDS code">
+                  <select
+                    value={state.tdsCode}
+                    onChange={(e) => {
+                      const code = e.target.value;
+                      const match = tdsCodes.find((c) => c.code === code);
+                      patchAndRecalc(row.reviewId, (s) => ({ ...s, tdsCode: code, tdsRate: match ? match.default_rate : s.tdsRate }));
+                    }}
+                    className={inputClass}
+                  >
+                    <option value="">— none —</option>
+                    {tdsCodes.map((c) => (
+                      <option key={c.id} value={c.code}>
+                        {c.code} ({c.default_rate}%)
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="TDS rate">
+                  <GNumber value={state.tdsRate} onChange={(v) => patchAndRecalc(row.reviewId, (s) => ({ ...s, tdsRate: v }))} />
+                </Field>
+                <Field label="TDS amt">
+                  <GNumber value={state.tdsAmount} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, tdsAmount: v }))} />
+                </Field>
+                <Field label="Already paid">
+                  <GNumber
+                    value={state.amountAlreadyPaid}
+                    onChange={(v) => patchAndRecalc(row.reviewId, (s) => ({ ...s, amountAlreadyPaid: v }))}
+                  />
+                </Field>
+                <Field label="Net amt">
+                  {state.grossUp ? (
                     <GNumber
-                      value={state.amountAlreadyPaid}
-                      onChange={(v) => patchAndRecalc(row.reviewId, (s) => ({ ...s, amountAlreadyPaid: v }))}
+                      value={state.netAmount}
+                      onChange={(v) => patchAndRecalc(row.reviewId, (s) => ({ ...s, netAmount: v }))}
                     />
-                  </Cell>
-                  <Cell width="w-32">
-                    {state.grossUp ? (
-                      <GNumber
-                        value={state.netAmount}
-                        onChange={(v) => patchAndRecalc(row.reviewId, (s) => ({ ...s, netAmount: v }))}
-                      />
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        <span className="block px-1 py-1.5 text-slate-500">
-                          {netPayable !== null ? formatNumber(netPayable) : "—"}
-                        </span>
-                        <button
-                          type="button"
-                          title="Recalculate from Taxable value, GST, TDS and Already paid"
-                          onClick={() => handleRecalc(row.reviewId)}
-                          className="rounded border border-slate-300 px-1.5 py-1 text-xs text-slate-600 hover:bg-slate-50"
-                        >
-                          ↻
-                        </button>
-                      </div>
-                    )}
-                  </Cell>
-                  <Cell width="w-36">
-                    <select
-                      value={state.paymentRoute}
-                      onChange={(e) => patch(row.reviewId, (s) => ({ ...s, paymentRoute: e.target.value as PaymentRoute }))}
-                      className={inputClass}
-                    >
-                      <option value="portal">Portal</option>
-                      <option value="card">Card</option>
-                      <option value="employee">Employee</option>
-                      <option value="auto_debit">Auto-debit</option>
-                      <option value="pay_gross_recover">Gross &amp; recover</option>
-                    </select>
-                  </Cell>
-                  <Cell width="w-44">
-                    <textarea
-                      value={state.comment}
-                      onChange={(e) => patch(row.reviewId, (s) => ({ ...s, comment: e.target.value }))}
-                      placeholder="Required to reject"
-                      rows={2}
-                      className="w-full rounded border border-slate-300 px-2 py-1 text-sm"
-                    />
-                  </Cell>
-                  <td className="sticky right-0 z-10 border-l border-slate-200 bg-white px-2 py-1.5 align-top">
-                    <div className="flex w-28 flex-col gap-1">
-                      {row.hasFile && (
-                        <button
-                          type="button"
-                          onClick={() => handleView(row.documentId)}
-                          disabled={viewingId === row.documentId}
-                          className="rounded border border-slate-300 px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                        >
-                          {viewingId === row.documentId ? "Opening…" : "View invoice"}
-                        </button>
-                      )}
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <span className="block px-1 py-1.5 text-slate-500">
+                        {netPayable !== null ? formatNumber(netPayable) : "—"}
+                      </span>
                       <button
                         type="button"
-                        onClick={() => handleApproveOne(row)}
-                        disabled={isPending}
-                        className="rounded bg-green-700 px-2 py-1.5 text-xs font-medium text-white hover:bg-green-800 disabled:opacity-50"
+                        title="Recalculate from Taxable value, GST, TDS and Already paid"
+                        onClick={() => handleRecalc(row.reviewId)}
+                        className="rounded border border-slate-300 px-1.5 py-1 text-xs text-slate-600 hover:bg-slate-50"
                       >
-                        Approve
+                        ↻
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => handleReject(row)}
-                        disabled={isPending}
-                        className="rounded bg-red-700 px-2 py-1.5 text-xs font-medium text-white hover:bg-red-800 disabled:opacity-50"
-                      >
-                        Reject
-                      </button>
-                      <Link href={`/documents/${row.documentId}`} className="text-center text-xs text-slate-500 underline hover:text-slate-900">
-                        Open
-                      </Link>
                     </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                  )}
+                </Field>
+                <Field label="Payment route">
+                  <select
+                    value={state.paymentRoute}
+                    onChange={(e) => patch(row.reviewId, (s) => ({ ...s, paymentRoute: e.target.value as PaymentRoute }))}
+                    className={inputClass}
+                  >
+                    <option value="portal">Portal</option>
+                    <option value="card">Card</option>
+                    <option value="employee">Employee</option>
+                    <option value="auto_debit">Auto-debit</option>
+                    <option value="pay_gross_recover">Gross &amp; recover</option>
+                  </select>
+                </Field>
+                <Field label="Comment" className="sm:col-span-2">
+                  <textarea
+                    value={state.comment}
+                    onChange={(e) => patch(row.reviewId, (s) => ({ ...s, comment: e.target.value }))}
+                    placeholder="Required to reject"
+                    rows={1}
+                    className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                  />
+                </Field>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

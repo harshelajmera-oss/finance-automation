@@ -90,6 +90,12 @@ export default function ApprovedTable({
               >
                 Record payment ({selected.size})
               </a>
+              <a
+                href={`/documents/payments/batch?${selectedQuery}`}
+                className="rounded-md border border-emerald-600 px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
+              >
+                Record several payments ({selected.size})
+              </a>
             </>
           )}
           <a
@@ -110,6 +116,9 @@ export default function ApprovedTable({
         The Razorpay payout file only includes rows routed &quot;Pay via portal&quot; or &quot;Pay gross and recover TDS&quot;
         with a vendor PAN, bank account and IFSC on file — rows already paid outside the portal, or missing those
         details, are listed separately in the file under &quot;Excluded rows&quot; instead of being paid.
+        &quot;Record payment&quot; makes one payment record covering all selected rows with one shared UTR/date — use
+        it when a single bank transaction paid several invoices together. &quot;Record several payments&quot; instead
+        opens a grid where each row gets its own UTR/date/mode, for entering many separate vendor payments at once.
       </p>
 
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">

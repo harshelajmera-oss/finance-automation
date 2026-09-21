@@ -41,6 +41,17 @@ export default async function PortalLayout({ children }: { children: React.React
               Payments
             </Link>
             <details className="group relative">
+              <summary className="cursor-pointer list-none text-slate-600 marker:content-none hover:text-slate-900">Masters</summary>
+              <div className="absolute right-0 z-10 mt-2 w-56 rounded-md border border-slate-200 bg-white py-1 shadow-lg">
+                <Link href="/documents/expense-ledgers" className="block px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+                  Expense Ledgers
+                </Link>
+                <Link href="/documents/gst-vendors" className="block px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+                  GST Vendor Master
+                </Link>
+              </div>
+            </details>
+            <details className="group relative">
               <summary className="cursor-pointer list-none text-slate-600 marker:content-none hover:text-slate-900">Tally</summary>
               <div className="absolute right-0 z-10 mt-2 w-56 rounded-md border border-slate-200 bg-white py-1 shadow-lg">
                 <Link href="/documents/tally/ledgers" className="block px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
@@ -48,6 +59,9 @@ export default async function PortalLayout({ children }: { children: React.React
                 </Link>
                 <Link href="/documents/tally/vouchers" className="block px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
                   Purchase / journal vouchers
+                </Link>
+                <Link href="/documents/tally/import-ledgers" className="block px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+                  Import ledgers from Tally
                 </Link>
               </div>
             </details>

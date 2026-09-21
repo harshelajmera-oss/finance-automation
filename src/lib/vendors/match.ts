@@ -11,6 +11,7 @@ import type { Vendor } from "@/lib/supabase/types";
 export async function findVendorMatch(
   supabase: SupabaseClient,
   orgId: string,
+  clientId: string,
   gstin: string | null,
   pan: string | null,
   name: string | null,
@@ -20,6 +21,7 @@ export async function findVendorMatch(
       .from("vendors")
       .select("*")
       .eq("org_id", orgId)
+      .eq("client_id", clientId)
       .eq("gstin", gstin)
       .limit(1)
       .maybeSingle<Vendor>();
@@ -31,6 +33,7 @@ export async function findVendorMatch(
       .from("vendors")
       .select("*")
       .eq("org_id", orgId)
+      .eq("client_id", clientId)
       .eq("pan", pan)
       .limit(1)
       .maybeSingle<Vendor>();
@@ -44,6 +47,7 @@ export async function findVendorMatch(
       .from("vendors")
       .select("*")
       .eq("org_id", orgId)
+      .eq("client_id", clientId)
       .ilike("name", `%${firstWord}%`)
       .limit(5)
       .returns<Vendor[]>();

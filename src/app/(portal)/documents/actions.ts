@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { extractInvoiceFields, isExtractable } from "@/lib/extraction/claude";
 import { computeValidationFlags } from "@/lib/extraction/validate";
+import { checkGstin } from "@/lib/gst-vendors/data";
 import { entityTypeFromPan } from "@/lib/vendors/entity-type";
 import type { ExtractedFields } from "@/lib/extraction/schema";
 import type { PaymentRoute, TdsTreatment } from "@/lib/supabase/types";
@@ -91,7 +92,10 @@ export async function runExtraction(documentId: string) {
 
   try {
     const fields = await extractInvoiceFields(bytes, extension);
-    const flags = computeValidationFlags(fields, client ?? null, document);
+    const gstCheck = fields.vendor.gstin
+      ? await checkGstin(supabase, document.client_id, fields.vendor.gstin, fields.vendor.name)
+      : undefined;
+    const flags = computeValidationFlags(fields, client ?? null, document, gstCheck);
 
     const { error } = await supabase.from("extractions").insert({
       document_id: document.id,
@@ -149,10 +153,14 @@ export async function submitReview(documentId: string, payload: SubmitReviewPayl
   let vendorId = "id" in payload.vendor ? payload.vendor.id : null;
 
   if (!vendorId) {
+    const { data: document } = await supabase.from("documents").select("client_id").eq("id", documentId).single();
+    if (!document) throw new Error("Document not found.");
+
     const { data: newVendor, error: vendorError } = await supabase
       .from("vendors")
       .insert({
         org_id: profile.org_id,
+        client_id: document.client_id,
         name: payload.vendor.name,
         gstin: payload.reviewedFields.vendor.gstin,
         pan: payload.reviewedFields.vendor.pan,

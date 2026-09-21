@@ -106,7 +106,7 @@ export default async function DocumentDetailPage({
   let tdsCodes: TdsCode[] = [];
 
   if (needsReviewForm && aiFields) {
-    const match = await findVendorMatch(supabase, document.org_id, aiFields.vendor.gstin, aiFields.vendor.pan, aiFields.vendor.name);
+    const match = await findVendorMatch(supabase, document.org_id, document.client_id, aiFields.vendor.gstin, aiFields.vendor.pan, aiFields.vendor.name);
     vendorMatch = match.vendor;
     possibleNameMatches = match.possibleNameMatches;
   }

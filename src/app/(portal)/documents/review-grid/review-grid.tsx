@@ -7,10 +7,11 @@ import { submitReview, getDocumentViewUrl, archiveDocument } from "../actions";
 import { computeGrossUp } from "@/lib/tds/gross-up";
 import { formatNumber } from "@/lib/format";
 import type { ExtractedFields, ValidationFlag } from "@/lib/extraction/schema";
-import type { PaymentRoute, TdsCode, Vendor } from "@/lib/supabase/types";
+import type { ExpenseLedger, PaymentRoute, TdsCode, Vendor } from "@/lib/supabase/types";
 
 export interface GridDocRow {
   documentId: string;
+  clientId: string;
   originalFilename: string;
   hasFile: boolean;
   clientName: string;
@@ -29,6 +30,7 @@ interface RowState {
   vendorPan: string;
   billedToName: string;
   natureOfService: string;
+  expenseLedgerName: string;
   taxableValue: number | null;
   igst: number | null;
   cgst: number | null;
@@ -110,6 +112,7 @@ function initRowState(row: GridDocRow, tdsCodes: TdsCode[]): RowState {
     vendorPan: row.fields.vendor.pan ?? "",
     billedToName: row.fields.billed_to.name ?? "",
     natureOfService: row.fields.service.description ?? "",
+    expenseLedgerName: vendorMatch?.default_expense_ledger ?? "",
     taxableValue: row.fields.amounts.taxable_value,
     igst: row.fields.amounts.igst,
     cgst: row.fields.amounts.cgst,
@@ -128,8 +131,13 @@ function initRowState(row: GridDocRow, tdsCodes: TdsCode[]): RowState {
   };
 }
 
-function Cell({ children, width = "w-32" }: { children: React.ReactNode; width?: string }) {
-  return <td className={`border-r border-slate-100 px-2 py-1.5 align-top ${width}`}>{children}</td>;
+function Field({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={className}>
+      <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-400">{label}</label>
+      {children}
+    </div>
+  );
 }
 
 const inputClass = "w-full rounded border border-slate-300 px-2 py-1.5 text-sm";
@@ -158,7 +166,15 @@ function GNumber({ value, onChange }: { value: number | null; onChange: (v: numb
   );
 }
 
-export default function ReviewGrid({ rows, tdsCodes }: { rows: GridDocRow[]; tdsCodes: TdsCode[] }) {
+export default function ReviewGrid({
+  rows,
+  tdsCodes,
+  expenseLedgersByClient,
+}: {
+  rows: GridDocRow[];
+  tdsCodes: TdsCode[];
+  expenseLedgersByClient: Record<string, ExpenseLedger[]>;
+}) {
   const router = useRouter();
   const [states, setStates] = useState<Record<string, RowState>>(() =>
     Object.fromEntries(rows.map((r) => [r.documentId, initRowState(r, tdsCodes)])),
@@ -282,7 +298,7 @@ export default function ReviewGrid({ rows, tdsCodes }: { rows: GridDocRow[]; tds
     return {
       reviewedFields: fields,
       vendor,
-      expenseLedger: row.vendorMatch?.default_expense_ledger ?? "",
+      expenseLedger: state.expenseLedgerName || "",
       tdsCode: state.tdsCode || null,
       tdsRate: state.tdsRate,
       tdsAmount: state.tdsAmount,
@@ -389,225 +405,212 @@ export default function ReviewGrid({ rows, tdsCodes }: { rows: GridDocRow[]; tds
         open the document to set those precisely before or after submitting.
       </p>
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
-            <tr>
-              <th className="sticky left-0 z-10 w-8 bg-slate-50 px-2 py-2"></th>
-              <th className="px-2 py-2 font-medium">Client</th>
-              <th className="px-2 py-2 font-medium">Vendor name</th>
-              <th className="px-2 py-2 font-medium">Vendor GSTIN</th>
-              <th className="px-2 py-2 font-medium">Vendor PAN</th>
-              <th className="px-2 py-2 font-medium">Billed to</th>
-              <th className="px-2 py-2 font-medium">Nature of service</th>
-              <th className="px-2 py-2 font-medium">Taxable value</th>
-              <th className="px-2 py-2 font-medium">IGST</th>
-              <th className="px-2 py-2 font-medium">CGST</th>
-              <th className="px-2 py-2 font-medium">SGST</th>
-              <th className="px-2 py-2 font-medium">Total</th>
-              <th className="px-2 py-2 font-medium">Bank account</th>
-              <th className="px-2 py-2 font-medium">IFSC</th>
-              <th className="px-2 py-2 font-medium">Gross-up</th>
-              <th className="px-2 py-2 font-medium">TDS code</th>
-              <th className="px-2 py-2 font-medium">TDS rate</th>
-              <th className="px-2 py-2 font-medium">Net amt</th>
-              <th className="px-2 py-2 font-medium">TDS amt</th>
-              <th className="px-2 py-2 font-medium">Already paid</th>
-              <th className="px-2 py-2 font-medium">Payment route</th>
-              <th className="px-2 py-2 font-medium">Flags</th>
-              <th className="sticky right-0 z-10 bg-slate-50 px-2 py-2 font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => {
-              const state = states[row.documentId] ?? initRowState(row, tdsCodes);
-              const hasErrorFlags = row.flags.some((f) => f.severity === "error");
-              return (
-                <tr
-                  key={row.documentId}
-                  className={`border-b border-slate-100 last:border-0 ${hasErrorFlags ? "bg-red-50" : ""}`}
-                >
-                  <td className={`sticky left-0 z-10 px-2 py-1 align-top ${hasErrorFlags ? "bg-red-50" : "bg-white"}`}>
-                    <input
-                      type="checkbox"
-                      checked={selected.has(row.documentId)}
-                      onChange={() => toggle(row.documentId)}
-                      aria-label={`Select ${row.originalFilename}`}
+      <div className="space-y-4">
+        {rows.map((row) => {
+          const state = states[row.documentId] ?? initRowState(row, tdsCodes);
+          const hasErrorFlags = row.flags.some((f) => f.severity === "error");
+          const expenseLedgers = expenseLedgersByClient[row.clientId] ?? [];
+          return (
+            <div
+              key={row.documentId}
+              className={`rounded-lg border p-4 shadow-sm ${hasErrorFlags ? "border-red-300 bg-red-50" : "border-slate-200 bg-white"}`}
+            >
+              <div className="mb-3 flex flex-wrap items-center gap-3 border-b border-slate-100 pb-3">
+                <input
+                  type="checkbox"
+                  checked={selected.has(row.documentId)}
+                  onChange={() => toggle(row.documentId)}
+                  aria-label={`Select ${row.originalFilename}`}
+                />
+                <span className="font-medium text-slate-900">
+                  {row.clientName} ({row.clientCode})
+                </span>
+                <span className="text-sm text-slate-400">{row.originalFilename}</span>
+                {row.vendorMatch ? (
+                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                    matched{row.vendorMatch.is_approved ? "" : " (pending)"}
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">new vendor</span>
+                )}
+                {row.flags.length > 0 && (
+                  <span
+                    title={row.flags.map((f) => f.message).join("\n")}
+                    className={`cursor-help rounded-full px-2 py-0.5 text-xs font-medium ${hasErrorFlags ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}
+                  >
+                    {row.flags.length} flag{row.flags.length === 1 ? "" : "s"}
+                  </span>
+                )}
+                <div className="ml-auto flex gap-2">
+                  {row.hasFile && (
+                    <button
+                      type="button"
+                      onClick={() => handleView(row.documentId)}
+                      disabled={viewingId === row.documentId}
+                      className="rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      {viewingId === row.documentId ? "Opening…" : "View invoice"}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleArchiveOne(row.documentId, state.vendorName || row.originalFilename)}
+                    disabled={isArchiving}
+                    className="rounded border border-red-300 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    Archive
+                  </button>
+                  <Link
+                    href={`/documents/${row.documentId}`}
+                    className="rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    Open
+                  </Link>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+                <Field label="Vendor name">
+                  <GText value={state.vendorName} onChange={(v) => patch(row.documentId, (s) => ({ ...s, vendorName: v }))} />
+                </Field>
+                <Field label="Vendor GSTIN">
+                  <GText value={state.vendorGstin} onChange={(v) => patch(row.documentId, (s) => ({ ...s, vendorGstin: v }))} />
+                </Field>
+                <Field label="Vendor PAN">
+                  <GText value={state.vendorPan} onChange={(v) => patch(row.documentId, (s) => ({ ...s, vendorPan: v }))} />
+                </Field>
+                <Field label="Billed to">
+                  <GText value={state.billedToName} onChange={(v) => patch(row.documentId, (s) => ({ ...s, billedToName: v }))} />
+                </Field>
+                <Field label="Nature of service" className="sm:col-span-2">
+                  <GText
+                    value={state.natureOfService}
+                    onChange={(v) => patch(row.documentId, (s) => ({ ...s, natureOfService: v }))}
+                  />
+                </Field>
+                <Field label="Expense ledger">
+                  <select
+                    value={state.expenseLedgerName}
+                    onChange={(e) => patch(row.documentId, (s) => ({ ...s, expenseLedgerName: e.target.value }))}
+                    className={inputClass}
+                  >
+                    <option value="">— none —</option>
+                    {expenseLedgers.map((l) => (
+                      <option key={l.id} value={l.name}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="Taxable value">
+                  <GNumber
+                    value={state.taxableValue}
+                    onChange={(v) => patchAndRecalc(row.documentId, (s) => ({ ...s, taxableValue: v }))}
+                  />
+                </Field>
+                <Field label="IGST">
+                  <GNumber value={state.igst} onChange={(v) => patchAndRecalc(row.documentId, (s) => applyGstEdit(s, "igst", v))} />
+                </Field>
+                <Field label="CGST">
+                  <GNumber value={state.cgst} onChange={(v) => patchAndRecalc(row.documentId, (s) => applyGstEdit(s, "cgst", v))} />
+                </Field>
+                <Field label="SGST">
+                  <GNumber value={state.sgst} onChange={(v) => patchAndRecalc(row.documentId, (s) => applyGstEdit(s, "sgst", v))} />
+                </Field>
+                <Field label="Total">
+                  <GNumber value={state.total} onChange={(v) => patch(row.documentId, (s) => ({ ...s, total: v }))} />
+                </Field>
+                <Field label="Bank account">
+                  <GText value={state.bankAccount} onChange={(v) => patch(row.documentId, (s) => ({ ...s, bankAccount: v }))} />
+                </Field>
+                <Field label="IFSC">
+                  <GText value={state.ifsc} onChange={(v) => patch(row.documentId, (s) => ({ ...s, ifsc: v }))} />
+                </Field>
+
+                <Field label="Gross-up">
+                  <input
+                    type="checkbox"
+                    checked={state.grossUp}
+                    onChange={(e) => patchAndRecalc(row.documentId, (s) => ({ ...s, grossUp: e.target.checked }))}
+                    className="mt-1.5"
+                  />
+                </Field>
+                <Field label="TDS code">
+                  <select
+                    value={state.tdsCode}
+                    onChange={(e) => {
+                      const code = e.target.value;
+                      const match = tdsCodes.find((c) => c.code === code);
+                      patchAndRecalc(row.documentId, (s) => ({ ...s, tdsCode: code, tdsRate: match ? match.default_rate : s.tdsRate }));
+                    }}
+                    className={inputClass}
+                  >
+                    <option value="">— none —</option>
+                    {tdsCodes.map((c) => (
+                      <option key={c.id} value={c.code}>
+                        {c.code} ({c.default_rate}%)
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="TDS rate">
+                  <GNumber value={state.tdsRate} onChange={(v) => patchAndRecalc(row.documentId, (s) => ({ ...s, tdsRate: v }))} />
+                </Field>
+                <Field label="Net amt">
+                  {state.grossUp ? (
+                    <GNumber
+                      value={state.netAmount}
+                      onChange={(v) => patchAndRecalc(row.documentId, (s) => ({ ...s, netAmount: v }))}
                     />
-                  </td>
-                  <Cell width="w-36">
-                    <span className="block px-1 py-1 text-slate-700">
-                      {row.clientName} ({row.clientCode})
+                  ) : (
+                    <span className="block px-1 py-1.5 text-slate-500">
+                      {(() => {
+                        const net =
+                          state.total !== null && state.tdsAmount !== null
+                            ? state.total - state.tdsAmount - (state.amountAlreadyPaid ?? 0)
+                            : null;
+                        return net !== null ? formatNumber(net) : "—";
+                      })()}
                     </span>
-                  </Cell>
-                  <Cell width="w-48">
-                    <GText value={state.vendorName} onChange={(v) => patch(row.documentId, (s) => ({ ...s, vendorName: v }))} />
-                    {row.vendorMatch ? (
-                      <span className="mt-0.5 block text-[10px] text-green-700">
-                        matched{row.vendorMatch.is_approved ? "" : " (pending)"}
-                      </span>
-                    ) : (
-                      <span className="mt-0.5 block text-[10px] text-amber-700">new vendor</span>
-                    )}
-                  </Cell>
-                  <Cell width="w-36">
-                    <GText value={state.vendorGstin} onChange={(v) => patch(row.documentId, (s) => ({ ...s, vendorGstin: v }))} />
-                  </Cell>
-                  <Cell width="w-32">
-                    <GText value={state.vendorPan} onChange={(v) => patch(row.documentId, (s) => ({ ...s, vendorPan: v }))} />
-                  </Cell>
-                  <Cell width="w-40">
-                    <GText value={state.billedToName} onChange={(v) => patch(row.documentId, (s) => ({ ...s, billedToName: v }))} />
-                  </Cell>
-                  <Cell width="w-48">
-                    <GText
-                      value={state.natureOfService}
-                      onChange={(v) => patch(row.documentId, (s) => ({ ...s, natureOfService: v }))}
-                    />
-                  </Cell>
-                  <Cell width="w-28">
-                    <GNumber
-                      value={state.taxableValue}
-                      onChange={(v) => patchAndRecalc(row.documentId, (s) => ({ ...s, taxableValue: v }))}
-                    />
-                  </Cell>
-                  <Cell width="w-24">
-                    <GNumber value={state.igst} onChange={(v) => patchAndRecalc(row.documentId, (s) => applyGstEdit(s, "igst", v))} />
-                  </Cell>
-                  <Cell width="w-24">
-                    <GNumber value={state.cgst} onChange={(v) => patchAndRecalc(row.documentId, (s) => applyGstEdit(s, "cgst", v))} />
-                  </Cell>
-                  <Cell width="w-24">
-                    <GNumber value={state.sgst} onChange={(v) => patchAndRecalc(row.documentId, (s) => applyGstEdit(s, "sgst", v))} />
-                  </Cell>
-                  <Cell width="w-28">
-                    <GNumber value={state.total} onChange={(v) => patch(row.documentId, (s) => ({ ...s, total: v }))} />
-                  </Cell>
-                  <Cell width="w-36">
-                    <GText value={state.bankAccount} onChange={(v) => patch(row.documentId, (s) => ({ ...s, bankAccount: v }))} />
-                  </Cell>
-                  <Cell width="w-28">
-                    <GText value={state.ifsc} onChange={(v) => patch(row.documentId, (s) => ({ ...s, ifsc: v }))} />
-                  </Cell>
-                  <Cell width="w-16">
-                    <input
-                      type="checkbox"
-                      checked={state.grossUp}
-                      onChange={(e) => patchAndRecalc(row.documentId, (s) => ({ ...s, grossUp: e.target.checked }))}
-                    />
-                  </Cell>
-                  <Cell width="w-36">
-                    <select
-                      value={state.tdsCode}
-                      onChange={(e) => {
-                        const code = e.target.value;
-                        const match = tdsCodes.find((c) => c.code === code);
-                        patchAndRecalc(row.documentId, (s) => ({ ...s, tdsCode: code, tdsRate: match ? match.default_rate : s.tdsRate }));
-                      }}
-                      className={inputClass}
-                    >
-                      <option value="">— none —</option>
-                      {tdsCodes.map((c) => (
-                        <option key={c.id} value={c.code}>
-                          {c.code} ({c.default_rate}%)
-                        </option>
-                      ))}
-                    </select>
-                  </Cell>
-                  <Cell width="w-20">
-                    <GNumber value={state.tdsRate} onChange={(v) => patchAndRecalc(row.documentId, (s) => ({ ...s, tdsRate: v }))} />
-                  </Cell>
-                  <Cell width="w-28">
-                    {state.grossUp ? (
-                      <GNumber
-                        value={state.netAmount}
-                        onChange={(v) => patchAndRecalc(row.documentId, (s) => ({ ...s, netAmount: v }))}
-                      />
-                    ) : (
-                      <span className="block px-1 py-1 text-slate-500">
-                        {(() => {
-                          const net =
-                            state.total !== null && state.tdsAmount !== null
-                              ? state.total - state.tdsAmount - (state.amountAlreadyPaid ?? 0)
-                              : null;
-                          return net !== null ? formatNumber(net) : "—";
-                        })()}
-                      </span>
-                    )}
-                  </Cell>
-                  <Cell width="w-28">
-                    <GNumber value={state.tdsAmount} onChange={(v) => patch(row.documentId, (s) => ({ ...s, tdsAmount: v }))} />
-                  </Cell>
-                  <Cell width="w-28">
-                    <GNumber
-                      value={state.amountAlreadyPaid}
-                      onChange={(v) => patch(row.documentId, (s) => ({ ...s, amountAlreadyPaid: v }))}
-                    />
-                  </Cell>
-                  <Cell width="w-36">
-                    <select
-                      value={state.paymentRoute}
-                      onChange={(e) => patch(row.documentId, (s) => ({ ...s, paymentRoute: e.target.value as PaymentRoute }))}
-                      className={inputClass}
-                    >
-                      <option value="portal">Portal</option>
-                      <option value="card">Card</option>
-                      <option value="employee">Employee</option>
-                      <option value="auto_debit">Auto-debit</option>
-                      <option value="pay_gross_recover">Gross &amp; recover</option>
-                    </select>
-                  </Cell>
-                  <Cell width="w-48">
-                    {row.flags.length === 0 ? (
-                      <span className="text-slate-300">—</span>
-                    ) : (
-                      <span
-                        title={row.flags.map((f) => f.message).join("\n")}
-                        className={`block cursor-help rounded px-1 py-0.5 text-[11px] ${hasErrorFlags ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}
-                      >
-                        {row.flags.length} flag{row.flags.length === 1 ? "" : "s"}
-                      </span>
-                    )}
-                    {hasErrorFlags && (
-                      <textarea
-                        value={state.overrideReason}
-                        onChange={(e) => patch(row.documentId, (s) => ({ ...s, overrideReason: e.target.value }))}
-                        placeholder="Reason to submit anyway"
-                        rows={2}
-                        className="mt-1 w-full rounded border border-red-300 px-1 py-1 text-[11px]"
-                      />
-                    )}
-                  </Cell>
-                  <td className={`sticky right-0 z-10 border-l border-slate-200 px-2 py-1.5 align-top ${hasErrorFlags ? "bg-red-50" : "bg-white"}`}>
-                    <div className="flex w-28 flex-col gap-1">
-                      {row.hasFile && (
-                        <button
-                          type="button"
-                          onClick={() => handleView(row.documentId)}
-                          disabled={viewingId === row.documentId}
-                          className="rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                        >
-                          {viewingId === row.documentId ? "Opening…" : "View invoice"}
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => handleArchiveOne(row.documentId, state.vendorName || row.originalFilename)}
-                        disabled={isArchiving}
-                        className="rounded border border-red-300 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
-                      >
-                        Archive
-                      </button>
-                      <Link href={`/documents/${row.documentId}`} className="text-center text-xs text-slate-500 underline hover:text-slate-900">
-                        Open
-                      </Link>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                  )}
+                </Field>
+                <Field label="TDS amt">
+                  <GNumber value={state.tdsAmount} onChange={(v) => patch(row.documentId, (s) => ({ ...s, tdsAmount: v }))} />
+                </Field>
+                <Field label="Already paid">
+                  <GNumber
+                    value={state.amountAlreadyPaid}
+                    onChange={(v) => patch(row.documentId, (s) => ({ ...s, amountAlreadyPaid: v }))}
+                  />
+                </Field>
+                <Field label="Payment route">
+                  <select
+                    value={state.paymentRoute}
+                    onChange={(e) => patch(row.documentId, (s) => ({ ...s, paymentRoute: e.target.value as PaymentRoute }))}
+                    className={inputClass}
+                  >
+                    <option value="portal">Portal</option>
+                    <option value="card">Card</option>
+                    <option value="employee">Employee</option>
+                    <option value="auto_debit">Auto-debit</option>
+                    <option value="pay_gross_recover">Gross &amp; recover</option>
+                  </select>
+                </Field>
+              </div>
+
+              {hasErrorFlags && (
+                <textarea
+                  value={state.overrideReason}
+                  onChange={(e) => patch(row.documentId, (s) => ({ ...s, overrideReason: e.target.value }))}
+                  placeholder="Reason to submit anyway"
+                  rows={2}
+                  className="mt-3 w-full rounded border border-red-300 px-2 py-1.5 text-sm"
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import type { Client, Document } from "@/lib/supabase/types";
 import type { ExtractedFields, ValidationFlag } from "./schema";
+import type { GstCheckResult } from "@/lib/gst-vendors/data";
 
 const GSTIN_FORMAT = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
 
@@ -32,6 +33,7 @@ export function computeValidationFlags(
   fields: ExtractedFields,
   client: Pick<Client, "name" | "gstin"> | null,
   document: Pick<Document, "received_month">,
+  gstCheck?: GstCheckResult,
 ): ValidationFlag[] {
   const flags: ValidationFlag[] = [];
   const { vendor, billed_to, service, amounts, document: doc, notes } = fields;
@@ -131,6 +133,21 @@ export function computeValidationFlags(
     const invoiceMonth = doc.invoice_date.slice(0, 7);
     if (invoiceMonth && invoiceMonth < document.received_month) {
       flags.push(flag("late_receipt", "warning", `Invoice is dated ${doc.invoice_date}, an earlier month than when it was received.`));
+    }
+  }
+
+  // GST Vendor Master cross-check
+  if (gstCheck) {
+    if (gstCheck.status === "not_found") {
+      flags.push(flag("gst_vendor_master", "warning", "Vendor GSTIN isn't in the GST Vendor Master — unregistered or not yet added."));
+    } else if (gstCheck.status === "name_mismatch") {
+      flags.push(
+        flag(
+          "gst_vendor_master",
+          "warning",
+          `Vendor GSTIN is registered in the GST Vendor Master under a different name ("${gstCheck.expectedName}").`,
+        ),
+      );
     }
   }
 

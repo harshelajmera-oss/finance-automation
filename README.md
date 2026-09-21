@@ -167,6 +167,41 @@ The build sequence has six steps.
   draft: import into a test/backup company first and check the entries land correctly (in particular
   the debit-is-negative-amount sign convention used throughout) before ever pointing this at live
   books.
+- **Vendors are now scoped per client**, not shared firm-wide — as of this pass, a second client
+  (alongside Elemento) needed its own separate vendor list. `vendors.client_id` is a required
+  column; vendor matching (GSTIN/PAN/name), the vendor list, and new-vendor creation from a review
+  all now filter and insert by client, not just by org.
+- **Expense Ledger Master**, one per client — a "Masters" nav menu, `/documents/expense-ledgers`.
+  Maker, checker and admin can all add, amend or archive entries (archiving hides it from the
+  dropdown without deleting anything a past review already points to, same as documents' own
+  archive), plus a bulk Excel upload with a downloadable blank template. This master feeds a new
+  "Expense ledger" dropdown that replaced the old free-text entry point in the review/checker grids
+  and in the Tally purchase voucher export.
+- **GST Vendor Master**, one per client — `/documents/gst-vendors`, same maker/checker/admin
+  permissions, bulk upload and template as the Expense Ledger Master. Whenever a vendor's GSTIN is
+  read off an invoice during extraction, it's checked against that client's list here and a
+  validation flag is raised if the GSTIN isn't found, or is registered under a different party name
+  — reusing the same validation-flag mechanism as every other automatic check.
+- **Import ledgers from Tally**, `/documents/tally/import-ledgers` — a one-time way to seed the
+  Vendor and Expense Ledger masters from Tally's own "List of Ledgers" export. That export is one
+  flat column with no indentation, but a group heading is always bold and an actual ledger name is
+  always plain text — confirmed against a real export — so the importer shows every detected group
+  with its item count and lets you tick which ones to pull in as vendors or as expense ledgers
+  (picking a deep sub-group like "Domestic Parties" rather than the "Sundry Creditors" umbrella
+  itself, which has no direct ledgers of its own). Newly-imported vendors get only a name and Tally
+  ledger name — GSTIN, PAN and bank details fill in naturally the next time an invoice for that
+  vendor is processed.
+- The **Review grid and Approve grid were reworked for readability** — each invoice is now a
+  labeled card (client, vendor, flags and actions in a header row, then every field in a
+  clearly-labeled grid below) instead of one cramped table row per invoice, and both now have a
+  client filter at the top so picking a client shows only that client's records. Both also gained
+  the new Expense Ledger dropdown described above.
+- **Record several payments at once**, `/documents/payments/batch` — a grid alongside the existing
+  single "Record a payment" screen, reachable the same way (tick rows on the Approved page). Where
+  the original screen makes one payment record with one shared UTR/date covering every selected row
+  (for when one bank transaction really did pay several invoices together), this one gives each row
+  its own editable payment date/mode/UTR/reference/paid-from/proof/notes and submits each as its own
+  separate payment record — for entering many distinct vendor payments efficiently side by side.
 - A maker's own **"Needs your attention"** view, listing their own rejected submissions so a
   rejection can't quietly go unnoticed.
 - **Bulk payout sheets** (many payees, no invoices — mentor payouts and similar): uploading an XLS

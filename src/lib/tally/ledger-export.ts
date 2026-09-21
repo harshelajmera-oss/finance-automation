@@ -11,14 +11,13 @@ export interface LedgerExportVendor {
 }
 
 /**
- * The exact "Sundry Creditors (Domestic)" / "Sundry Creditors (Foreign
- * Parties)" group names are a guess at the firm's own chart of accounts,
- * following SPEC.md's wording literally — verify these match real group
- * names in the Tally company before importing, and rename in the XML (or
- * in Tally afterwards) if not.
+ * "Domestic Parties" and "Foreign Parties" — confirmed against a real
+ * export of Elemento's own Tally chart of accounts, where both sit as
+ * sub-groups directly under Sundry Creditors. A different company's Tally
+ * setup could still use different names; verify before importing if so.
  */
 function parentGroupFor(v: LedgerExportVendor): string {
-  return v.gstin || v.pan ? "Sundry Creditors (Domestic)" : "Sundry Creditors (Foreign Parties)";
+  return v.gstin || v.pan ? "Domestic Parties" : "Foreign Parties";
 }
 
 export function ledgerNameFor(v: Pick<LedgerExportVendor, "name" | "tallyLedgerName">): string {

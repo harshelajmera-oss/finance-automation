@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { Client, Document, Profile, Review, TdsCode, Vendor } from "@/lib/supabase/types";
+import { fetchExpenseLedgers } from "@/lib/expense-ledgers/data";
+import type { Client, Document, ExpenseLedger, Profile, Review, TdsCode, Vendor } from "@/lib/supabase/types";
 import CheckerGrid, { type CheckerGridRow } from "./checker-grid";
 
 type ReviewRow = Review & {
   documents:
-    | (Pick<Document, "id" | "original_filename" | "storage_path"> & {
+    | (Pick<Document, "id" | "client_id" | "original_filename" | "storage_path"> & {
         clients: Pick<Client, "name" | "code" | "gstin"> | null;
       })
     | null;
@@ -15,6 +16,7 @@ type ReviewRow = Review & {
 
 interface SearchParams {
   vendorId?: string;
+  clientId?: string;
   submittedFrom?: string;
   submittedTo?: string;
 }
@@ -39,14 +41,15 @@ export default async function CheckerGridPage({ searchParams }: { searchParams: 
 
   const params = await searchParams;
 
-  const [{ data: reviews }, { data: codes }] = await Promise.all([
+  const [{ data: reviews }, { data: codes }, { data: clients }] = await Promise.all([
     supabase
       .from("reviews")
-      .select("*, documents ( id, original_filename, storage_path, clients ( name, code, gstin ) ), vendors ( * )")
+      .select("*, documents ( id, client_id, original_filename, storage_path, clients ( name, code, gstin ) ), vendors ( * )")
       .eq("status", "submitted")
       .order("submitted_at", { ascending: true })
       .returns<ReviewRow[]>(),
     supabase.from("tds_codes").select("*").order("code", { ascending: true }).returns<TdsCode[]>(),
+    supabase.from("clients").select("*").order("name", { ascending: true }).returns<Client[]>(),
   ]);
 
   const allRows: CheckerGridRow[] = (reviews ?? [])
@@ -54,6 +57,7 @@ export default async function CheckerGridPage({ searchParams }: { searchParams: 
     .map((r) => ({
       reviewId: r.id,
       documentId: r.documents?.id ?? r.document_id,
+      clientId: r.documents?.client_id ?? "",
       originalFilename: r.documents?.original_filename ?? "",
       hasFile: Boolean(r.documents?.storage_path),
       clientName: r.documents?.clients?.name ?? "—",
@@ -78,13 +82,20 @@ export default async function CheckerGridPage({ searchParams }: { searchParams: 
 
   const rows = allRows.filter((r) => {
     if (params.vendorId && r.vendor?.id !== params.vendorId) return false;
+    if (params.clientId && r.clientId !== params.clientId) return false;
     if (!inRange(r.submittedAt, params.submittedFrom, params.submittedTo)) return false;
     return true;
   });
 
-  const filterActive = params.vendorId || params.submittedFrom || params.submittedTo;
+  const expenseLedgersByClient: Record<string, ExpenseLedger[]> = {};
+  for (const clientId of new Set(rows.map((r) => r.clientId).filter(Boolean))) {
+    expenseLedgersByClient[clientId] = await fetchExpenseLedgers(supabase, clientId);
+  }
+
+  const filterActive = params.vendorId || params.clientId || params.submittedFrom || params.submittedTo;
   const query = new URLSearchParams();
   if (params.vendorId) query.set("vendorId", params.vendorId);
+  if (params.clientId) query.set("clientId", params.clientId);
   if (params.submittedFrom) query.set("submittedFrom", params.submittedFrom);
   if (params.submittedTo) query.set("submittedTo", params.submittedTo);
   const queryString = query.toString();
@@ -98,6 +109,17 @@ export default async function CheckerGridPage({ searchParams }: { searchParams: 
       </p>
 
       <form method="get" className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-3 text-sm shadow-sm">
+        <div>
+          <label className="mb-1 block text-xs text-slate-500">Client</label>
+          <select name="clientId" defaultValue={params.clientId ?? ""} className="rounded-md border border-slate-300 px-2 py-1.5 text-sm">
+            <option value="">All clients</option>
+            {(clients ?? []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({c.code})
+              </option>
+            ))}
+          </select>
+        </div>
         <div>
           <label className="mb-1 block text-xs text-slate-500">Vendor</label>
           <select name="vendorId" defaultValue={params.vendorId ?? ""} className="rounded-md border border-slate-300 px-2 py-1.5 text-sm">
@@ -134,7 +156,7 @@ export default async function CheckerGridPage({ searchParams }: { searchParams: 
         </a>
       </form>
 
-      <CheckerGrid rows={rows} tdsCodes={codes ?? []} />
+      <CheckerGrid rows={rows} tdsCodes={codes ?? []} expenseLedgersByClient={expenseLedgersByClient} />
     </main>
   );
 }
