@@ -11,21 +11,26 @@
 --
 -- What this wipes: every document, extraction, review, payment, payment
 -- allocation, bulk-payout-sheet batch, pending vendor bank-change request,
--- the vendor list, and the uploaded document files sitting in Storage.
+-- and the vendor list.
 --
 -- What this KEEPS: clients (Elemento/NEXTLEAP etc.), TDS codes, and every
 -- login/role/organization — you'll sign in with the same accounts
 -- afterwards, against clients and TDS codes already set up, onto a vendor
 -- list and document history that starts empty.
 --
+-- The uploaded document FILES themselves live in Supabase Storage, not in
+-- these tables, and Supabase deliberately blocks deleting storage.objects
+-- rows directly by SQL ("Direct deletion from storage tables is not
+-- allowed. Use the Storage API instead.") — delete those separately, from
+-- the Dashboard: Storage -> the "documents" bucket -> select all -> Delete.
+-- Do that either before or after this script; the order doesn't matter
+-- since nothing here touches Storage.
+--
 -- Deletion order matters — each table below is deleted before the tables
 -- it has a foreign key into, so this runs cleanly with no constraint
 -- errors. Run the whole file in one go.
 
 begin;
-
--- Uploaded document files, in the "documents" Storage bucket.
-delete from storage.objects where bucket_id = 'documents';
 
 -- Transactional data, children before parents.
 delete from public.payment_allocations;
