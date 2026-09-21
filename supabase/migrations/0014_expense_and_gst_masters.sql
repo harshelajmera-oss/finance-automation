@@ -4,9 +4,7 @@
 -- Two clients now share this portal (Elemento, and a new one being
 -- onboarded) — until now, vendors were shared firm-wide across every
 -- client, which stops making sense the moment a second client's vendors
--- need to stay separate from the first's. The vendors table happens to be
--- empty right now (cleared before go-live), so client_id can be added as
--- NOT NULL with no backfill to worry about.
+-- need to stay separate from the first's.
 --
 -- Unlike vendors (checker/admin only), Expense Ledger and GST Vendor
 -- Master are writable by maker, checker AND admin, per explicit request —
@@ -15,9 +13,53 @@
 
 -- ---------------------------------------------------------------------------
 -- Vendors: scope by client, not just org.
+--
+-- Existing vendor rows predate per-client scoping, so client_id starts
+-- nullable and is backfilled from each vendor's own review history —
+-- a vendor is only ever created by submitReview() against one specific
+-- document, so its most recent review names the client it belongs to.
+-- Anything still unresolved after that (no review ever pointed at it)
+-- falls back to the org's sole client when there's exactly one; with more
+-- than one client already on file, this stops and asks for a manual look
+-- rather than guessing which one.
 -- ---------------------------------------------------------------------------
 alter table public.vendors
-  add column client_id uuid not null references public.clients (id);
+  add column client_id uuid references public.clients (id);
+
+update public.vendors v
+set client_id = sub.client_id
+from (
+  select distinct on (r.vendor_id) r.vendor_id, d.client_id
+  from public.reviews r
+  join public.documents d on d.id = r.document_id
+  where r.vendor_id is not null
+  order by r.vendor_id, r.submitted_at desc
+) sub
+where v.id = sub.vendor_id
+  and v.client_id is null;
+
+do $$
+declare
+  v_unresolved_count int;
+  v_single_client_id uuid;
+  v_client_count int;
+begin
+  select count(*) into v_unresolved_count from public.vendors where client_id is null;
+  if v_unresolved_count = 0 then
+    return;
+  end if;
+
+  select count(*) into v_client_count from public.clients;
+  if v_client_count = 1 then
+    select id into v_single_client_id from public.clients limit 1;
+    update public.vendors set client_id = v_single_client_id where client_id is null;
+  else
+    raise exception 'Cannot backfill client_id for % vendor(s) with no review history, and more than one client exists — resolve manually (UPDATE vendors SET client_id = ... WHERE client_id IS NULL) before re-running this migration.', v_unresolved_count;
+  end if;
+end $$;
+
+alter table public.vendors
+  alter column client_id set not null;
 
 drop index if exists vendors_org_gstin_idx;
 drop index if exists vendors_org_pan_idx;
