@@ -65,6 +65,35 @@ export async function recordPayment(supabase: SupabaseClient, input: RecordPayme
   return { id: data as string };
 }
 
+export interface EditPaymentInput {
+  paymentId: string;
+  paymentDate: string;
+  mode: PaymentMode;
+  utr: string | null;
+  reference: string | null;
+  paidFromLedger: string | null;
+  proofUrl: string | null;
+  isAdvance: boolean;
+  notes: string | null;
+}
+
+export async function editPayment(supabase: SupabaseClient, input: EditPaymentInput): Promise<{ ok: true } | { error: string }> {
+  const { error } = await supabase.rpc("edit_payment", {
+    p_payment_id: input.paymentId,
+    p_payment_date: input.paymentDate,
+    p_mode: input.mode,
+    p_utr: input.utr,
+    p_reference: input.reference,
+    p_paid_from_ledger: input.paidFromLedger,
+    p_proof_url: input.proofUrl,
+    p_is_advance: input.isAdvance,
+    p_notes: input.notes,
+  });
+
+  if (error) return { error: error.message };
+  return { ok: true };
+}
+
 /** Payments with no UTR yet — candidates for auto-matching against an uploaded bank statement. */
 export async function fetchPendingPayments(supabase: SupabaseClient): Promise<PendingPaymentForMatch[]> {
   const { data } = await supabase
@@ -103,6 +132,38 @@ export async function applyUtrMatches(
   });
   if (error) return { error: error.message };
   return { ok: true };
+}
+
+export interface PaymentDetailForExport {
+  paymentDate: string;
+  mode: PaymentMode;
+  utr: string | null;
+  reference: string | null;
+  amount: number;
+}
+
+/** Every payment recorded against each of the given reviews — a review can have more than one (part-payments). */
+export async function fetchPaymentDetailsByReview(
+  supabase: SupabaseClient,
+  reviewIds: string[],
+): Promise<Map<string, PaymentDetailForExport[]>> {
+  const map = new Map<string, PaymentDetailForExport[]>();
+  if (reviewIds.length === 0) return map;
+
+  const { data } = await supabase
+    .from("payment_allocations")
+    .select("review_id, amount, payments ( payment_date, mode, utr, reference )")
+    .in("review_id", reviewIds);
+
+  for (const row of data ?? []) {
+    const payment = row.payments as unknown as { payment_date: string; mode: PaymentMode; utr: string | null; reference: string | null } | null;
+    if (!payment) continue;
+    const reviewId = row.review_id as string;
+    const list = map.get(reviewId) ?? [];
+    list.push({ paymentDate: payment.payment_date, mode: payment.mode, utr: payment.utr, reference: payment.reference, amount: row.amount as number });
+    map.set(reviewId, list);
+  }
+  return map;
 }
 
 export interface PaymentHistoryLine {

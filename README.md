@@ -221,6 +221,16 @@ The build sequence has six steps.
   single document first. Tally ledger name is optional: leaving it blank makes the Tally export
   fall back to the vendor's plain name, so there's nothing to fill in unless you want the ledger
   called something different from the vendor name itself.
+- **Edit a recorded payment**, on the Payments page — an "Edit" button on each payment card lets
+  you fix the date, mode, UTR, reference, paid-from ledger, proof link, advance flag, or notes
+  after the fact, for when one was mistyped. The amount and which invoices it covers are
+  deliberately not editable here, since those drive every review's outstanding balance — every
+  edit is logged to the audit log with the old and new values, same as recording the payment in
+  the first place.
+- **Payment details in the Approved page's Excel export** — "Download as Excel" now adds Amount
+  Paid, Payment Status (Unpaid / Partially paid / Paid in full), and the Payment Date(s), Mode(s),
+  UTR(s) and Reference(s) for each row, pulled from every payment recorded against it (semicolon-
+  joined when an invoice was part-paid across more than one payment).
 - **Record several payments at once**, `/documents/payments/batch` — a grid alongside the existing
   single "Record a payment" screen, reachable the same way (tick rows on the Approved page). Where
   the original screen makes one payment record with one shared UTR/date covering every selected row
