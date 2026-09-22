@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { submitReview } from "../actions";
-import { TextInput, EditableExtractedFields, LedgerTdsFields, PaymentRouteField } from "./field-editors";
+import { TextInput, DocumentVendorFields, AmountsNotesFields, LedgerTdsFields, PaymentRouteField } from "./field-editors";
 import { formatNumber } from "@/lib/format";
 import type { ExtractedFields, ValidationFlag } from "@/lib/extraction/schema";
 import type { ExpenseLedger, PaymentRoute, TdsCode, TdsTreatment, Vendor } from "@/lib/supabase/types";
@@ -125,55 +125,62 @@ export default function ReviewForm({
         </div>
       )}
 
-      <EditableExtractedFields fields={fields} setFields={setFields} clientGstin={clientGstin} vendorGstinMaster={vendorGstinMaster} />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="space-y-4">
+          <DocumentVendorFields fields={fields} setFields={setFields} clientGstin={clientGstin} vendorGstinMaster={vendorGstinMaster} />
+        </div>
+        <div className="space-y-4">
+          <AmountsNotesFields fields={fields} setFields={setFields} />
 
-      <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="mb-3 text-sm font-semibold text-slate-900">Vendor match</h2>
-        {vendorMatch ? (
-          <p className="text-sm text-slate-700">
-            Matched to an existing vendor: <span className="font-medium">{vendorMatch.name}</span>
-            {vendorMatch.is_approved ? "" : " (pending approval)"} — its ledger and TDS history are used as the
-            starting point below.
-          </p>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-sm text-slate-500">
-              No existing vendor matched by GSTIN or PAN. This will create a new vendor, pending a checker&apos;s
-              approval.
-            </p>
-            {possibleNameMatches.length > 0 && (
-              <p className="rounded-md bg-amber-50 p-2 text-sm text-amber-800">
-                Possibly the same as: {possibleNameMatches.map((v) => v.name).join(", ")} — check before treating
-                this as new.
+          <LedgerTdsFields
+            state={{ expenseLedger, setExpenseLedger, tdsCode, setTdsCode, tdsRate, setTdsRate, tdsAmount, setTdsAmount, grossUp, setGrossUp, netAmount, setNetAmount }}
+            tdsCodes={tdsCodes}
+            expenseLedgers={expenseLedgers}
+            taxableValue={fields.amounts.taxable_value}
+            total={fields.amounts.total}
+            amountAlreadyPaid={fields.amounts.amount_already_paid}
+          />
+
+          <PaymentRouteField value={paymentRoute} onChange={setPaymentRoute} />
+
+          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="mb-3 text-sm font-semibold text-slate-900">Vendor match</h2>
+            {vendorMatch ? (
+              <p className="text-sm text-slate-700">
+                Matched to an existing vendor: <span className="font-medium">{vendorMatch.name}</span>
+                {vendorMatch.is_approved ? "" : " (pending approval)"} — its ledger and TDS history are used as the
+                starting point above.
               </p>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-500">
+                  No existing vendor matched by GSTIN or PAN. This will create a new vendor, pending a checker&apos;s
+                  approval.
+                </p>
+                {possibleNameMatches.length > 0 && (
+                  <p className="rounded-md bg-amber-50 p-2 text-sm text-amber-800">
+                    Possibly the same as: {possibleNameMatches.map((v) => v.name).join(", ")} — check before treating
+                    this as new.
+                  </p>
+                )}
+                <TextInput label="Vendor name" value={newVendorName} onChange={setNewVendorName} />
+                <TextInput label="Tally ledger name" value={newVendorLedger} onChange={setNewVendorLedger} />
+                <div>
+                  <label className="mb-1 block text-xs text-slate-500">TDS treatment</label>
+                  <select
+                    value={newVendorTreatment}
+                    onChange={(e) => setNewVendorTreatment(e.target.value as TdsTreatment)}
+                    className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                  >
+                    <option value="deduct">Deduct at payment</option>
+                    <option value="pay_gross_recover">Pay gross and recover</option>
+                  </select>
+                </div>
+              </div>
             )}
-            <TextInput label="Vendor name" value={newVendorName} onChange={setNewVendorName} />
-            <TextInput label="Tally ledger name" value={newVendorLedger} onChange={setNewVendorLedger} />
-            <div>
-              <label className="mb-1 block text-xs text-slate-500">TDS treatment</label>
-              <select
-                value={newVendorTreatment}
-                onChange={(e) => setNewVendorTreatment(e.target.value as TdsTreatment)}
-                className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-              >
-                <option value="deduct">Deduct at payment</option>
-                <option value="pay_gross_recover">Pay gross and recover</option>
-              </select>
-            </div>
           </div>
-        )}
+        </div>
       </div>
-
-      <LedgerTdsFields
-        state={{ expenseLedger, setExpenseLedger, tdsCode, setTdsCode, tdsRate, setTdsRate, tdsAmount, setTdsAmount, grossUp, setGrossUp, netAmount, setNetAmount }}
-        tdsCodes={tdsCodes}
-        expenseLedgers={expenseLedgers}
-        taxableValue={fields.amounts.taxable_value}
-        total={fields.amounts.total}
-        amountAlreadyPaid={fields.amounts.amount_already_paid}
-      />
-
-      <PaymentRouteField value={paymentRoute} onChange={setPaymentRoute} />
 
       {hasErrorFlags && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4">

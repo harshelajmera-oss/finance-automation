@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { submitManualExtraction } from "../actions";
-import { EditableExtractedFields } from "./field-editors";
+import { DocumentVendorFields, AmountsNotesFields } from "./field-editors";
 import { emptyExtractedFields } from "@/lib/extraction/schema";
 import type { ExtractedFields } from "@/lib/extraction/schema";
 
@@ -38,7 +38,14 @@ export default function ManualEntryForm({
         process as an AI-read document — it&apos;s just recorded as manually entered.
       </p>
 
-      <EditableExtractedFields fields={fields} setFields={setFields} />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="space-y-4">
+          <DocumentVendorFields fields={fields} setFields={setFields} />
+        </div>
+        <div className="space-y-4">
+          <AmountsNotesFields fields={fields} setFields={setFields} />
+        </div>
+      </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 

@@ -127,7 +127,7 @@ export default async function DocumentDetailPage({
   }
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10">
       <Link href="/documents" className="text-sm text-slate-500 hover:underline">
         ← All documents
       </Link>

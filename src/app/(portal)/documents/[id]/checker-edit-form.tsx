@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { checkerDecide } from "../actions";
-import { EditableExtractedFields, LedgerTdsFields, PaymentRouteField } from "./field-editors";
+import { DocumentVendorFields, AmountsNotesFields, LedgerTdsFields, PaymentRouteField } from "./field-editors";
 import { formatNumber } from "@/lib/format";
 import type { ExtractedFields, ValidationFlag } from "@/lib/extraction/schema";
 import type { ExpenseLedger, PaymentRoute, Review, TdsCode } from "@/lib/supabase/types";
@@ -108,18 +108,25 @@ export default function CheckerEditForm({
         for that.
       </p>
 
-      <EditableExtractedFields fields={fields} setFields={setFields} clientGstin={clientGstin} vendorGstinMaster={vendorGstinMaster} />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="space-y-4">
+          <DocumentVendorFields fields={fields} setFields={setFields} clientGstin={clientGstin} vendorGstinMaster={vendorGstinMaster} />
+        </div>
+        <div className="space-y-4">
+          <AmountsNotesFields fields={fields} setFields={setFields} />
 
-      <LedgerTdsFields
-        state={{ expenseLedger, setExpenseLedger, tdsCode, setTdsCode, tdsRate, setTdsRate, tdsAmount, setTdsAmount, grossUp, setGrossUp, netAmount, setNetAmount }}
-        tdsCodes={tdsCodes}
-        expenseLedgers={expenseLedgers}
-        taxableValue={fields.amounts.taxable_value}
-        total={fields.amounts.total}
-        amountAlreadyPaid={fields.amounts.amount_already_paid}
-      />
+          <LedgerTdsFields
+            state={{ expenseLedger, setExpenseLedger, tdsCode, setTdsCode, tdsRate, setTdsRate, tdsAmount, setTdsAmount, grossUp, setGrossUp, netAmount, setNetAmount }}
+            tdsCodes={tdsCodes}
+            expenseLedgers={expenseLedgers}
+            taxableValue={fields.amounts.taxable_value}
+            total={fields.amounts.total}
+            amountAlreadyPaid={fields.amounts.amount_already_paid}
+          />
 
-      <PaymentRouteField value={paymentRoute} onChange={setPaymentRoute} />
+          <PaymentRouteField value={paymentRoute} onChange={setPaymentRoute} />
+        </div>
+      </div>
 
       <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="mb-2 text-sm font-semibold text-slate-900">Your decision</h2>

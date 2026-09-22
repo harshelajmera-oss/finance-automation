@@ -196,6 +196,11 @@ The build sequence has six steps.
   clearly-labeled grid below) instead of one cramped table row per invoice, and both now have a
   client filter at the top so picking a client shows only that client's records. Both also gained
   the new Expense Ledger dropdown described above, and the same live GSTIN badges described next.
+- **Single-document view laid out in two columns** — the maker's review screen, the checker's
+  edit screen, and manual entry now put identifying info (Document, Vendor, Billed to, Service)
+  in a left column and money info (Amounts, Notes, Ledger/TDS, Payment route, Vendor match) in a
+  right column, side by side, instead of one long stacked list. Same fields, same order within
+  each group — the page is just shorter to scroll on a normal screen.
 - **Live GSTIN match badges**, next to the GSTIN fields themselves — in the single-document view
   (both the maker's and checker's editing screens) and both grids. Vendor GSTIN gets a green
   "match" / amber "not in master" badge checked against that client's GST Vendor Master as you

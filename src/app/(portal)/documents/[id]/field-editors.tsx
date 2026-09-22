@@ -130,8 +130,12 @@ export function CheckboxInput({
   );
 }
 
-/** The document/vendor/billed-to/service/amounts/notes groups — shared between the maker's and the checker's editing screens. */
-export function EditableExtractedFields({
+/**
+ * The identifying-information groups (document/vendor/billed-to/service) —
+ * shared between the maker's and the checker's editing screens, and meant
+ * for the left column when laid out side by side with AmountsNotesFields.
+ */
+export function DocumentVendorFields({
   fields,
   setFields,
   clientGstin = null,
@@ -289,7 +293,23 @@ export function EditableExtractedFields({
           </div>
         </div>
       </div>
+    </>
+  );
+}
 
+/**
+ * The amounts/notes groups — shared between the maker's and the checker's
+ * editing screens, and meant for the right column alongside DocumentVendorFields.
+ */
+export function AmountsNotesFields({
+  fields,
+  setFields,
+}: {
+  fields: ExtractedFields;
+  setFields: (updater: (f: ExtractedFields) => ExtractedFields) => void;
+}) {
+  return (
+    <>
       <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="mb-3 text-sm font-semibold text-slate-900">Amounts</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
