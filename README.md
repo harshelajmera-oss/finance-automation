@@ -182,6 +182,13 @@ The build sequence has six steps.
   read off an invoice during extraction, it's checked against that client's list here and a
   validation flag is raised if the GSTIN isn't found, or is registered under a different party name
   — reusing the same validation-flag mechanism as every other automatic check.
+- **Propose a GST Vendor Master entry inline, with checker sign-off** — a "+ Add to master" button
+  next to a vendor GSTIN's amber "not in master" badge (single document, Review grid, Approve
+  grid) submits it for that client's GST Vendor Master, but it doesn't take effect immediately: it
+  sits as "Pending approval" on the GST Vendor Master page until a checker or admin approves it
+  there. Only then does it count as a match anywhere (the live badge, the extraction-time
+  validation flag) — unlike adding an entry directly on the GST Vendor Master page itself, which
+  still takes effect immediately, same as before.
 - **Import ledgers from Tally**, `/documents/tally/import-ledgers` — a one-time way to seed the
   Vendor and Expense Ledger masters from Tally's own "List of Ledgers" export. That export is one
   flat column with no indentation, but a group heading is always bold and an actual ledger name is

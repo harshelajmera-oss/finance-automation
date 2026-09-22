@@ -181,6 +181,7 @@ export default async function DocumentDetailPage({
           {needsReviewForm && (
             <ReviewForm
               documentId={document.id}
+              clientId={document.client_id}
               initialFields={document.review_status === "rejected" && latestReview ? latestReview.reviewed_fields : aiFields}
               flags={flags}
               vendorMatch={vendorMatch}
@@ -200,6 +201,7 @@ export default async function DocumentDetailPage({
               {canCheckerDecide && (
                 <CheckerEditForm
                   review={latestReview}
+                  clientId={document.client_id}
                   flags={flags}
                   tdsCodes={tdsCodes}
                   expenseLedgers={expenseLedgers}

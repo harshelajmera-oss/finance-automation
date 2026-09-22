@@ -2,7 +2,7 @@
 
 import { computeGrossUp } from "@/lib/tds/gross-up";
 import { formatNumber } from "@/lib/format";
-import { GstinBadge, clientGstinStatus, vendorGstinStatus } from "@/lib/validation/gstin-match";
+import { GstinBadge, GstMasterProposeButton, clientGstinStatus, vendorGstinStatus } from "@/lib/validation/gstin-match";
 import type { ExtractedFields } from "@/lib/extraction/schema";
 import type { ExpenseLedger, PaymentRoute, TdsCode } from "@/lib/supabase/types";
 
@@ -140,12 +140,15 @@ export function DocumentVendorFields({
   setFields,
   clientGstin = null,
   vendorGstinMaster = [],
+  clientId = null,
 }: {
   fields: ExtractedFields;
   setFields: (updater: (f: ExtractedFields) => ExtractedFields) => void;
   clientGstin?: string | null;
   vendorGstinMaster?: string[];
+  clientId?: string | null;
 }) {
+  const vendorGstinStat = vendorGstinStatus(fields.vendor.gstin, vendorGstinMaster);
   return (
     <>
       <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -168,7 +171,14 @@ export function DocumentVendorFields({
             label="GSTIN"
             value={fields.vendor.gstin}
             onChange={(v) => setFields((f) => ({ ...f, vendor: { ...f.vendor, gstin: v } }))}
-            labelExtra={<GstinBadge status={vendorGstinStatus(fields.vendor.gstin, vendorGstinMaster)} />}
+            labelExtra={
+              <>
+                <GstinBadge status={vendorGstinStat} />
+                {vendorGstinStat === "not_in_master" && clientId && fields.vendor.gstin && (
+                  <GstMasterProposeButton clientId={clientId} gstin={fields.vendor.gstin} vendorName={fields.vendor.name ?? ""} />
+                )}
+              </>
+            }
           />
           <TextInput label="PAN" value={fields.vendor.pan} onChange={(v) => setFields((f) => ({ ...f, vendor: { ...f.vendor, pan: v } }))} />
           <TextInput label="State" value={fields.vendor.state} onChange={(v) => setFields((f) => ({ ...f, vendor: { ...f.vendor, state: v } }))} />

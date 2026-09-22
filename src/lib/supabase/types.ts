@@ -94,6 +94,7 @@ export interface GstVendorMasterEntry {
   gstin: string;
   party_name: string;
   is_active: boolean;
+  is_approved: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;

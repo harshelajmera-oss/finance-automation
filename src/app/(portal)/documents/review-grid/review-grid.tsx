@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { submitReview, getDocumentViewUrl, archiveDocument } from "../actions";
 import { computeGrossUp } from "@/lib/tds/gross-up";
 import { formatNumber } from "@/lib/format";
-import { GstinBadge, clientGstinStatus, vendorGstinStatus } from "@/lib/validation/gstin-match";
+import { GstinBadge, GstMasterProposeButton, clientGstinStatus, vendorGstinStatus } from "@/lib/validation/gstin-match";
 import type { ExtractedFields, ValidationFlag } from "@/lib/extraction/schema";
 import type { ExpenseLedger, PaymentRoute, TdsCode, TdsTreatment, Vendor } from "@/lib/supabase/types";
 
@@ -435,6 +435,7 @@ export default function ReviewGrid({
           const hasErrorFlags = row.flags.some((f) => f.severity === "error");
           const expenseLedgers = expenseLedgersByClient[row.clientId] ?? [];
           const vendorGstins = vendorGstinsByClient[row.clientId] ?? [];
+          const vendorGstinStat = vendorGstinStatus(state.vendorGstin, vendorGstins);
           return (
             <div
               key={row.documentId}
@@ -504,7 +505,17 @@ export default function ReviewGrid({
                 <Field label="Vendor name">
                   <GText value={state.vendorName} onChange={(v) => patch(row.documentId, (s) => ({ ...s, vendorName: v }))} />
                 </Field>
-                <Field label="Vendor GSTIN" labelExtra={<GstinBadge status={vendorGstinStatus(state.vendorGstin, vendorGstins)} />}>
+                <Field
+                  label="Vendor GSTIN"
+                  labelExtra={
+                    <>
+                      <GstinBadge status={vendorGstinStat} />
+                      {vendorGstinStat === "not_in_master" && state.vendorGstin && (
+                        <GstMasterProposeButton clientId={row.clientId} gstin={state.vendorGstin} vendorName={state.vendorName} />
+                      )}
+                    </>
+                  }
+                >
                   <GText value={state.vendorGstin} onChange={(v) => patch(row.documentId, (s) => ({ ...s, vendorGstin: v }))} />
                 </Field>
                 <Field label="Vendor PAN">

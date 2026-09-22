@@ -5,10 +5,11 @@ import type { GstVendorMasterEntry } from "@/lib/supabase/types";
 export async function fetchGstVendorMaster(
   supabase: SupabaseClient,
   clientId: string,
-  options?: { includeInactive?: boolean },
+  options?: { includeInactive?: boolean; includeUnapproved?: boolean },
 ): Promise<GstVendorMasterEntry[]> {
   let query = supabase.from("gst_vendor_master").select("*").eq("client_id", clientId).order("party_name", { ascending: true });
   if (!options?.includeInactive) query = query.eq("is_active", true);
+  if (!options?.includeUnapproved) query = query.eq("is_approved", true);
   const { data } = await query.returns<GstVendorMasterEntry[]>();
   return data ?? [];
 }
@@ -35,6 +36,7 @@ export async function checkGstin(
     .eq("client_id", clientId)
     .eq("gstin", gstin)
     .eq("is_active", true)
+    .eq("is_approved", true)
     .maybeSingle<{ party_name: string }>();
 
   if (!data) return { status: "not_found" };

@@ -10,6 +10,7 @@ import type { ExpenseLedger, PaymentRoute, TdsCode, TdsTreatment, Vendor } from 
 
 export default function ReviewForm({
   documentId,
+  clientId,
   initialFields,
   flags,
   vendorMatch,
@@ -21,6 +22,7 @@ export default function ReviewForm({
   rejectionComment,
 }: {
   documentId: string;
+  clientId: string;
   initialFields: ExtractedFields;
   flags: ValidationFlag[];
   vendorMatch: Vendor | null;
@@ -127,7 +129,7 @@ export default function ReviewForm({
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="space-y-4">
-          <DocumentVendorFields fields={fields} setFields={setFields} clientGstin={clientGstin} vendorGstinMaster={vendorGstinMaster} />
+          <DocumentVendorFields fields={fields} setFields={setFields} clientGstin={clientGstin} vendorGstinMaster={vendorGstinMaster} clientId={clientId} />
         </div>
         <div className="space-y-4">
           <AmountsNotesFields fields={fields} setFields={setFields} />

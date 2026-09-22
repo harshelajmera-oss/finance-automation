@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { checkerDecide, getDocumentViewUrl } from "../actions";
 import { computeGrossUp } from "@/lib/tds/gross-up";
 import { formatNumber } from "@/lib/format";
-import { GstinBadge, clientGstinStatus, vendorGstinStatus } from "@/lib/validation/gstin-match";
+import { GstinBadge, GstMasterProposeButton, clientGstinStatus, vendorGstinStatus } from "@/lib/validation/gstin-match";
 import type { ExtractedFields } from "@/lib/extraction/schema";
 import type { ExpenseLedger, PaymentRoute, TdsCode, TdsTreatment, Vendor } from "@/lib/supabase/types";
 
@@ -391,6 +391,7 @@ export default function CheckerGrid({
           const netPayable = state.grossUp ? null : computeNetPayable(state);
           const expenseLedgers = expenseLedgersByClient[row.clientId] ?? [];
           const vendorGstins = vendorGstinsByClient[row.clientId] ?? [];
+          const vendorGstinStat = vendorGstinStatus(state.vendorGstin, vendorGstins);
           return (
             <div key={row.reviewId} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
               <div className="mb-3 flex flex-wrap items-center gap-3 border-b border-slate-100 pb-3">
@@ -453,7 +454,17 @@ export default function CheckerGrid({
                 <Field label="Vendor name">
                   <GText value={state.vendorName} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, vendorName: v }))} />
                 </Field>
-                <Field label="Vendor GSTIN" labelExtra={<GstinBadge status={vendorGstinStatus(state.vendorGstin, vendorGstins)} />}>
+                <Field
+                  label="Vendor GSTIN"
+                  labelExtra={
+                    <>
+                      <GstinBadge status={vendorGstinStat} />
+                      {vendorGstinStat === "not_in_master" && state.vendorGstin && (
+                        <GstMasterProposeButton clientId={row.clientId} gstin={state.vendorGstin} vendorName={state.vendorName} />
+                      )}
+                    </>
+                  }
+                >
                   <GText value={state.vendorGstin} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, vendorGstin: v }))} />
                 </Field>
                 <Field label="Vendor PAN">

@@ -18,6 +18,20 @@ async function requireMakerCheckerOrAdmin() {
   return { supabase, user, orgId: profile.org_id as string };
 }
 
+async function requireCheckerOrAdmin() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in.");
+
+  const { data: profile } = await supabase.from("profiles").select("role, org_id").eq("id", user.id).single();
+  if (!profile || !["checker", "admin"].includes(profile.role)) {
+    throw new Error("Only a checker or admin can approve a GST Vendor Master entry.");
+  }
+  return { supabase, user, orgId: profile.org_id as string };
+}
+
 const GSTIN_FORMAT = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
 
 export async function addGstVendor(clientId: string, gstin: string, partyName: string) {
@@ -43,6 +57,74 @@ export async function setGstVendorActive(id: string, isActive: boolean) {
   const { supabase } = await requireMakerCheckerOrAdmin();
 
   const { error } = await supabase.from("gst_vendor_master").update({ is_active: isActive }).eq("id", id);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/documents/gst-vendors");
+}
+
+export type ProposeGstVendorResult = { status: "proposed" | "already_pending" | "already_active" };
+
+/**
+ * The inline "+ Add to master" action offered next to a "not in master"
+ * GSTIN badge while reviewing or approving a document — unlike addGstVendor
+ * (the deliberate admin-page action), this doesn't take effect immediately:
+ * it inserts is_approved = false, so it stays invisible to fetchGstVendorMaster()
+ * and checkGstin() until a checker or admin approves it below.
+ */
+export async function proposeGstVendor(clientId: string, gstin: string, partyName: string): Promise<ProposeGstVendorResult> {
+  const { supabase, user, orgId } = await requireMakerCheckerOrAdmin();
+
+  const cleanGstin = gstin.trim().toUpperCase();
+  if (!GSTIN_FORMAT.test(cleanGstin)) throw new Error("That doesn't look like a valid 15-character GSTIN.");
+  if (!partyName.trim()) throw new Error("Enter a party name.");
+
+  const { data: existing } = await supabase
+    .from("gst_vendor_master")
+    .select("id, is_active, is_approved")
+    .eq("client_id", clientId)
+    .eq("gstin", cleanGstin)
+    .maybeSingle();
+
+  if (existing) {
+    if (existing.is_active && existing.is_approved) return { status: "already_active" };
+    if (existing.is_active && !existing.is_approved) return { status: "already_pending" };
+    const { error } = await supabase
+      .from("gst_vendor_master")
+      .update({ is_active: true, is_approved: false, party_name: partyName.trim(), created_by: user.id })
+      .eq("id", existing.id);
+    if (error) throw new Error(error.message);
+    revalidatePath("/documents/gst-vendors");
+    return { status: "proposed" };
+  }
+
+  const { error } = await supabase.from("gst_vendor_master").insert({
+    org_id: orgId,
+    client_id: clientId,
+    gstin: cleanGstin,
+    party_name: partyName.trim(),
+    is_active: true,
+    is_approved: false,
+    created_by: user.id,
+  });
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/documents/gst-vendors");
+  return { status: "proposed" };
+}
+
+export async function approveGstVendorProposal(id: string) {
+  const { supabase } = await requireCheckerOrAdmin();
+
+  const { error } = await supabase.from("gst_vendor_master").update({ is_approved: true }).eq("id", id);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/documents/gst-vendors");
+}
+
+export async function rejectGstVendorProposal(id: string) {
+  const { supabase } = await requireCheckerOrAdmin();
+
+  const { error } = await supabase.from("gst_vendor_master").update({ is_active: false }).eq("id", id);
   if (error) throw new Error(error.message);
 
   revalidatePath("/documents/gst-vendors");

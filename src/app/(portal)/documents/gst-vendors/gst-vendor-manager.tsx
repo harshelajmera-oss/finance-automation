@@ -3,20 +3,23 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { addGstVendor, setGstVendorActive, uploadGstVendors } from "./actions";
-import type { Client, GstVendorMasterEntry } from "@/lib/supabase/types";
+import { addGstVendor, approveGstVendorProposal, rejectGstVendorProposal, setGstVendorActive, uploadGstVendors } from "./actions";
+import type { Client, GstVendorMasterEntry, Profile } from "@/lib/supabase/types";
 
 export default function GstVendorManager({
   clients,
   clientId,
   entries,
   showAll,
+  role,
 }: {
   clients: Client[];
   clientId: string;
   entries: GstVendorMasterEntry[];
   showAll: boolean;
+  role: Profile["role"] | null;
 }) {
+  const canApprove = role === "checker" || role === "admin";
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +50,28 @@ export default function GstVendorManager({
     startTransition(async () => {
       await setGstVendorActive(id, isActive);
       router.refresh();
+    });
+  }
+
+  function handleApprove(id: string) {
+    startTransition(async () => {
+      try {
+        await approveGstVendorProposal(id);
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not approve that entry.");
+      }
+    });
+  }
+
+  function handleReject(id: string) {
+    startTransition(async () => {
+      try {
+        await rejectGstVendorProposal(id);
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not reject that entry.");
+      }
     });
   }
 
@@ -169,21 +194,45 @@ export default function GstVendorManager({
                 <td className="px-3 py-2 font-mono text-slate-900">{e.gstin}</td>
                 <td className="px-3 py-2 text-slate-500">{e.party_name}</td>
                 <td className="px-3 py-2">
-                  {e.is_active ? (
+                  {!e.is_active ? (
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">Archived</span>
+                  ) : e.is_approved ? (
                     <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">Active</span>
                   ) : (
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">Archived</span>
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">Pending approval</span>
                   )}
                 </td>
                 <td className="px-3 py-2 text-right">
-                  <button
-                    type="button"
-                    onClick={() => handleToggle(e.id, !e.is_active)}
-                    disabled={isPending}
-                    className="text-sm text-slate-500 underline hover:text-slate-900"
-                  >
-                    {e.is_active ? "Archive" : "Restore"}
-                  </button>
+                  <div className="flex items-center justify-end gap-3">
+                    {e.is_active && !e.is_approved && canApprove && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleApprove(e.id)}
+                          disabled={isPending}
+                          className="text-sm text-green-700 underline hover:text-green-900"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleReject(e.id)}
+                          disabled={isPending}
+                          className="text-sm text-red-700 underline hover:text-red-900"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleToggle(e.id, !e.is_active)}
+                      disabled={isPending}
+                      className="text-sm text-slate-500 underline hover:text-slate-900"
+                    >
+                      {e.is_active ? "Archive" : "Restore"}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
