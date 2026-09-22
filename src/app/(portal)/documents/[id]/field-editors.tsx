@@ -157,9 +157,6 @@ export function DocumentVendorFields({
           <TextInput label="Type" value={fields.document.type} onChange={(v) => setFields((f) => ({ ...f, document: { ...f.document, type: v } }))} />
           <TextInput label="Invoice number" value={fields.document.invoice_number} onChange={(v) => setFields((f) => ({ ...f, document: { ...f.document, invoice_number: v } }))} />
           <DateInput label="Invoice date" value={fields.document.invoice_date} onChange={(v) => setFields((f) => ({ ...f, document: { ...f.document, invoice_date: v } }))} />
-          <DateInput label="Due date" value={fields.document.due_date} onChange={(v) => setFields((f) => ({ ...f, document: { ...f.document, due_date: v } }))} />
-          <TextInput label="IRN" value={fields.document.irn} onChange={(v) => setFields((f) => ({ ...f, document: { ...f.document, irn: v } }))} />
-          <TextInput label="Currency" value={fields.document.currency} onChange={(v) => setFields((f) => ({ ...f, document: { ...f.document, currency: v } }))} />
         </div>
       </div>
 
@@ -206,8 +203,6 @@ export function DocumentVendorFields({
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <TextInput label="Description" value={fields.service.description} onChange={(v) => setFields((f) => ({ ...f, service: { ...f.service, description: v } }))} />
           <TextInput label="SAC / HSN" value={fields.service.sac_hsn} onChange={(v) => setFields((f) => ({ ...f, service: { ...f.service, sac_hsn: v } }))} />
-          <DateInput label="Period from" value={fields.service.service_period_from} onChange={(v) => setFields((f) => ({ ...f, service: { ...f.service, service_period_from: v } }))} />
-          <DateInput label="Period to" value={fields.service.service_period_to} onChange={(v) => setFields((f) => ({ ...f, service: { ...f.service, service_period_to: v } }))} />
         </div>
 
         <div className="mt-4">
@@ -373,7 +368,6 @@ export function AmountsNotesFields({
         <div className="space-y-2">
           <CheckboxInput label="TDS mentioned on document" checked={fields.notes.tds_mentioned} onChange={(v) => setFields((f) => ({ ...f, notes: { ...f.notes, tds_mentioned: v } }))} />
           <CheckboxInput label="Reverse charge mentioned" checked={fields.notes.reverse_charge_mentioned} onChange={(v) => setFields((f) => ({ ...f, notes: { ...f.notes, reverse_charge_mentioned: v } }))} />
-          <TextInput label="Credit lines against earlier invoices" value={fields.notes.credit_lines_against_earlier_invoices} onChange={(v) => setFields((f) => ({ ...f, notes: { ...f.notes, credit_lines_against_earlier_invoices: v } }))} />
         </div>
       </div>
     </>

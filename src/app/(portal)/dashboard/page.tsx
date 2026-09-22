@@ -99,14 +99,6 @@ export default async function DashboardPage() {
         )}
         {profile?.role === "checker" && (
           <Link
-            href="/documents/checker-queue"
-            className="block rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
-          >
-            Checker queue →
-          </Link>
-        )}
-        {profile?.role === "checker" && (
-          <Link
             href="/documents/checker-grid"
             className="block rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
           >

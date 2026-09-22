@@ -9,9 +9,6 @@ export interface ExtractedFields {
     type: string | null;
     invoice_number: string | null;
     invoice_date: string | null;
-    due_date: string | null;
-    irn: string | null;
-    currency: string | null;
   };
   vendor: {
     name: string | null;
@@ -22,7 +19,6 @@ export interface ExtractedFields {
     udyam_number: string | null;
     bank_account: string | null;
     ifsc: string | null;
-    upi_id: string | null;
     email: string | null;
   };
   billed_to: {
@@ -33,8 +29,6 @@ export interface ExtractedFields {
   service: {
     description: string | null;
     sac_hsn: string | null;
-    service_period_from: string | null;
-    service_period_to: string | null;
     line_items: Array<{
       description: string | null;
       qty: number | null;
@@ -53,7 +47,6 @@ export interface ExtractedFields {
   notes: {
     tds_mentioned: boolean;
     reverse_charge_mentioned: boolean;
-    credit_lines_against_earlier_invoices: string | null;
   };
   low_confidence_fields: string[];
   /**
@@ -77,7 +70,7 @@ export interface ExtractedFields {
 /** A blank starting point for manual entry — same shape a completed extraction has. */
 export function emptyExtractedFields(): ExtractedFields {
   return {
-    document: { type: null, invoice_number: null, invoice_date: null, due_date: null, irn: null, currency: null },
+    document: { type: null, invoice_number: null, invoice_date: null },
     vendor: {
       name: null,
       address: null,
@@ -87,13 +80,12 @@ export function emptyExtractedFields(): ExtractedFields {
       udyam_number: null,
       bank_account: null,
       ifsc: null,
-      upi_id: null,
       email: null,
     },
     billed_to: { name: null, gstin: null, place_of_supply: null },
-    service: { description: null, sac_hsn: null, service_period_from: null, service_period_to: null, line_items: [] },
+    service: { description: null, sac_hsn: null, line_items: [] },
     amounts: { taxable_value: null, cgst: null, sgst: null, igst: null, total: null, amount_already_paid: null },
-    notes: { tds_mentioned: false, reverse_charge_mentioned: false, credit_lines_against_earlier_invoices: null },
+    notes: { tds_mentioned: false, reverse_charge_mentioned: false },
     low_confidence_fields: [],
     payout: null,
   };
@@ -113,11 +105,8 @@ export const EXTRACTION_TOOL = {
           type: { type: ["string", "null"], description: "e.g. 'GST invoice', 'receipt', 'debit note'" },
           invoice_number: { type: ["string", "null"] },
           invoice_date: { type: ["string", "null"], description: "YYYY-MM-DD" },
-          due_date: { type: ["string", "null"], description: "YYYY-MM-DD" },
-          irn: { type: ["string", "null"], description: "e-invoice IRN, if present" },
-          currency: { type: ["string", "null"], description: "ISO code, e.g. INR, USD" },
         },
-        required: ["type", "invoice_number", "invoice_date", "due_date", "irn", "currency"],
+        required: ["type", "invoice_number", "invoice_date"],
         additionalProperties: false,
       },
       vendor: {
@@ -131,21 +120,9 @@ export const EXTRACTION_TOOL = {
           udyam_number: { type: ["string", "null"] },
           bank_account: { type: ["string", "null"], description: "As printed, kept as text" },
           ifsc: { type: ["string", "null"] },
-          upi_id: { type: ["string", "null"] },
           email: { type: ["string", "null"] },
         },
-        required: [
-          "name",
-          "address",
-          "state",
-          "gstin",
-          "pan",
-          "udyam_number",
-          "bank_account",
-          "ifsc",
-          "upi_id",
-          "email",
-        ],
+        required: ["name", "address", "state", "gstin", "pan", "udyam_number", "bank_account", "ifsc", "email"],
         additionalProperties: false,
       },
       billed_to: {
@@ -163,8 +140,6 @@ export const EXTRACTION_TOOL = {
         properties: {
           description: { type: ["string", "null"] },
           sac_hsn: { type: ["string", "null"] },
-          service_period_from: { type: ["string", "null"], description: "YYYY-MM-DD" },
-          service_period_to: { type: ["string", "null"], description: "YYYY-MM-DD" },
           line_items: {
             type: "array",
             items: {
@@ -180,7 +155,7 @@ export const EXTRACTION_TOOL = {
             },
           },
         },
-        required: ["description", "sac_hsn", "service_period_from", "service_period_to", "line_items"],
+        required: ["description", "sac_hsn", "line_items"],
         additionalProperties: false,
       },
       amounts: {
@@ -201,9 +176,8 @@ export const EXTRACTION_TOOL = {
         properties: {
           tds_mentioned: { type: "boolean" },
           reverse_charge_mentioned: { type: "boolean" },
-          credit_lines_against_earlier_invoices: { type: ["string", "null"] },
         },
-        required: ["tds_mentioned", "reverse_charge_mentioned", "credit_lines_against_earlier_invoices"],
+        required: ["tds_mentioned", "reverse_charge_mentioned"],
         additionalProperties: false,
       },
       low_confidence_fields: {

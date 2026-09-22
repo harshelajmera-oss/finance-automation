@@ -68,7 +68,8 @@ export async function fetchApprovedRows(supabase: SupabaseClient, filters?: Appr
     const fields = row.checker_edited_fields ?? row.reviewed_fields;
     const total = fields?.amounts?.total ?? null;
     const tdsAmount = row.tds_amount as number | null;
-    const netPayable = total !== null ? total - (tdsAmount ?? 0) : null;
+    const amountAlreadyPaid = fields?.amounts?.amount_already_paid ?? null;
+    const netPayable = total !== null ? total - (tdsAmount ?? 0) - (amountAlreadyPaid ?? 0) : null;
     const doc = row.documents as unknown as {
       id: string;
       original_filename: string;

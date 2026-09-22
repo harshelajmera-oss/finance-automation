@@ -203,7 +203,6 @@ export async function submitReview(documentId: string, payload: SubmitReviewPayl
   revalidatePath(`/documents/${documentId}`);
   revalidatePath("/documents");
   revalidatePath("/documents/review-grid");
-  revalidatePath("/documents/checker-queue");
   revalidatePath("/documents/checker-grid");
 }
 
@@ -280,7 +279,6 @@ export async function checkerDecide(
     await supabase.from("vendors").update(vendorUpdate).eq("id", approveVendorId);
   }
 
-  revalidatePath("/documents/checker-queue");
   revalidatePath("/documents/checker-grid");
   revalidatePath("/documents/review-grid");
   revalidatePath("/documents");

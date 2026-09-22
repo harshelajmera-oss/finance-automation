@@ -80,11 +80,6 @@ export default async function PortalLayout({ children }: { children: React.React
               </Link>
             )}
             {role === "checker" && (
-              <Link href="/documents/checker-queue" className="text-slate-600 hover:text-slate-900">
-                Checker queue
-              </Link>
-            )}
-            {role === "checker" && (
               <Link href="/documents/checker-grid" className="text-slate-600 hover:text-slate-900">
                 Approve grid
               </Link>

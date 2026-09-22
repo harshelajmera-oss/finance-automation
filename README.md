@@ -91,7 +91,7 @@ The build sequence has six steps.
   spec's own fraud-control rule, those go through a **propose → confirm** flow requiring a second
   person before the change takes effect.
 - A persistent **navigation menu on every page** (not just the dashboard): Documents, Upload,
-  Approved, plus Checker queue / Needs your attention depending on your role, plus an Admin menu.
+  Approved, plus Needs your attention / Approve grid depending on your role, plus an Admin menu.
 - An **"Approved" tab**, visible to maker, checker and admin alike — expanded with bank account,
   IFSC, vendor GSTIN/PAN, tax breakup (taxable/CGST/SGST/IGST), TDS code/rate/amount and net
   payable, sourced from the approved review (the confirmed record), not the raw AI extraction.
@@ -301,6 +301,18 @@ The build sequence has six steps.
   select everything currently shown, or narrow to one extraction status (pending/completed/failed)
   or review status (not submitted/submitted/approved/rejected) in one click, then extract or
   archive the whole selection at once.
+- **A first simplification pass**, after an audit of every screen in the app for duplication and
+  clutter:
+  - Fixed an inconsistency where the Approved page's "outstanding" figure didn't subtract an
+    invoice's "amount already paid," while the Summary page's did — both now agree.
+  - Removed six fields that had no use anywhere downstream (no validation check, no export, no
+    Tally output): Due date, IRN, and Currency on the Document, the vendor's UPI ID, the
+    service's Period from/to dates, and the "Credit lines against earlier invoices" note. These
+    were pure scrolling with no payoff — fewer fields on every document, one less thing to fill
+    in or leave blank.
+  - Removed the standalone **Checker queue** screen — a plain list that only ever linked into the
+    single-document view, fully superseded by the Approve grid (which shows the same submitted
+    items and lets a checker decide inline). Checkers now land on the Approve grid directly.
 
 Not yet built: email intake (needs a Google account connection), Google Drive filing, payments, and
 the Google Sheets/Tally exports.
