@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { checkerDecide, getDocumentViewUrl } from "../actions";
 import { computeGrossUp } from "@/lib/tds/gross-up";
 import { formatNumber } from "@/lib/format";
+import { GstinBadge, clientGstinStatus, vendorGstinStatus } from "@/lib/validation/gstin-match";
 import type { ExtractedFields } from "@/lib/extraction/schema";
 import type { ExpenseLedger, PaymentRoute, TdsCode, Vendor } from "@/lib/supabase/types";
 
@@ -139,10 +140,23 @@ function initRowState(row: CheckerGridRow): RowState {
   };
 }
 
-function Field({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
+function Field({
+  label,
+  children,
+  className = "",
+  labelExtra,
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+  labelExtra?: React.ReactNode;
+}) {
   return (
     <div className={className}>
-      <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-400">{label}</label>
+      <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-400">
+        {label}
+        {labelExtra}
+      </label>
       {children}
     </div>
   );
@@ -170,10 +184,12 @@ export default function CheckerGrid({
   rows,
   tdsCodes,
   expenseLedgersByClient,
+  vendorGstinsByClient,
 }: {
   rows: CheckerGridRow[];
   tdsCodes: TdsCode[];
   expenseLedgersByClient: Record<string, ExpenseLedger[]>;
+  vendorGstinsByClient: Record<string, string[]>;
 }) {
   const router = useRouter();
   const [states, setStates] = useState<Record<string, RowState>>(() =>
@@ -362,6 +378,7 @@ export default function CheckerGrid({
           const state = states[row.reviewId] ?? initRowState(row);
           const netPayable = state.grossUp ? null : computeNetPayable(state);
           const expenseLedgers = expenseLedgersByClient[row.clientId] ?? [];
+          const vendorGstins = vendorGstinsByClient[row.clientId] ?? [];
           return (
             <div key={row.reviewId} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
               <div className="mb-3 flex flex-wrap items-center gap-3 border-b border-slate-100 pb-3">
@@ -374,6 +391,12 @@ export default function CheckerGrid({
                 <span className="font-medium text-slate-900">
                   {row.clientName} ({row.clientCode})
                 </span>
+                {row.fields.billed_to.gstin && (
+                  <span className="text-xs text-slate-400">
+                    billed-to GSTIN
+                    <GstinBadge status={clientGstinStatus(row.fields.billed_to.gstin, row.clientGstin)} />
+                  </span>
+                )}
                 <span className="text-sm text-slate-400">{row.originalFilename}</span>
                 {row.vendorPendingId && (
                   <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">new vendor (pending)</span>
@@ -418,7 +441,7 @@ export default function CheckerGrid({
                 <Field label="Vendor name">
                   <GText value={state.vendorName} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, vendorName: v }))} />
                 </Field>
-                <Field label="Vendor GSTIN">
+                <Field label="Vendor GSTIN" labelExtra={<GstinBadge status={vendorGstinStatus(state.vendorGstin, vendorGstins)} />}>
                   <GText value={state.vendorGstin} onChange={(v) => patch(row.reviewId, (s) => ({ ...s, vendorGstin: v }))} />
                 </Field>
                 <Field label="Vendor PAN">

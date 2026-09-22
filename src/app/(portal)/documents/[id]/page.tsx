@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { findVendorMatch } from "@/lib/vendors/match";
 import { fetchExpenseLedgers } from "@/lib/expense-ledgers/data";
+import { fetchGstVendorMaster } from "@/lib/gst-vendors/data";
 import { formatDate } from "@/lib/format";
 import type { Client, Document, ExpenseLedger, Extraction, Profile, Review, TdsCode, Vendor } from "@/lib/supabase/types";
 import ViewDocumentButton from "../view-document-button";
@@ -11,7 +12,7 @@ import ReviewForm from "./review-form";
 import ReviewSummary from "./review-summary";
 import CheckerEditForm from "./checker-edit-form";
 
-type DocumentRow = Document & { clients: Pick<Client, "name" | "code"> | null };
+type DocumentRow = Document & { clients: Pick<Client, "name" | "code" | "gstin"> | null };
 
 function statusBadge(status: string) {
   const styles: Record<string, string> = {
@@ -54,7 +55,7 @@ export default async function DocumentDetailPage({
 
   const { data: document } = await supabase
     .from("documents")
-    .select("*, clients ( name, code )")
+    .select("*, clients ( name, code, gstin )")
     .eq("id", id)
     .single<DocumentRow>();
 
@@ -106,6 +107,7 @@ export default async function DocumentDetailPage({
   let possibleNameMatches: Vendor[] = [];
   let tdsCodes: TdsCode[] = [];
   let expenseLedgers: ExpenseLedger[] = [];
+  let vendorGstinMaster: string[] = [];
 
   if (needsReviewForm && aiFields) {
     const match = await findVendorMatch(supabase, document.org_id, document.client_id, aiFields.vendor.gstin, aiFields.vendor.pan, aiFields.vendor.name);
@@ -114,12 +116,14 @@ export default async function DocumentDetailPage({
   }
 
   if (needsReviewForm || canCheckerDecide) {
-    const [{ data: codes }, ledgers] = await Promise.all([
+    const [{ data: codes }, ledgers, gstMaster] = await Promise.all([
       supabase.from("tds_codes").select("*").order("code", { ascending: true }).returns<TdsCode[]>(),
       fetchExpenseLedgers(supabase, document.client_id),
+      fetchGstVendorMaster(supabase, document.client_id),
     ]);
     tdsCodes = codes ?? [];
     expenseLedgers = ledgers;
+    vendorGstinMaster = gstMaster.map((g) => g.gstin);
   }
 
   return (
@@ -183,6 +187,8 @@ export default async function DocumentDetailPage({
               possibleNameMatches={possibleNameMatches}
               tdsCodes={tdsCodes}
               expenseLedgers={expenseLedgers}
+              clientGstin={document.clients?.gstin ?? null}
+              vendorGstinMaster={vendorGstinMaster}
               rejectionComment={document.review_status === "rejected" ? latestReview?.checker_comment : null}
             />
           )}
@@ -197,6 +203,8 @@ export default async function DocumentDetailPage({
                   flags={flags}
                   tdsCodes={tdsCodes}
                   expenseLedgers={expenseLedgers}
+                  clientGstin={document.clients?.gstin ?? null}
+                  vendorGstinMaster={vendorGstinMaster}
                   vendorName={reviewVendor?.name ?? null}
                   vendorPendingId={reviewVendor && !reviewVendor.is_approved ? reviewVendor.id : null}
                 />

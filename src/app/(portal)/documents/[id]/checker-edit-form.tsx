@@ -14,6 +14,8 @@ export default function CheckerEditForm({
   flags,
   tdsCodes,
   expenseLedgers,
+  clientGstin,
+  vendorGstinMaster,
   vendorName,
   vendorPendingId,
 }: {
@@ -21,6 +23,8 @@ export default function CheckerEditForm({
   flags: ValidationFlag[];
   tdsCodes: TdsCode[];
   expenseLedgers: ExpenseLedger[];
+  clientGstin: string | null;
+  vendorGstinMaster: string[];
   vendorName: string | null;
   vendorPendingId: string | null;
 }) {
@@ -104,7 +108,7 @@ export default function CheckerEditForm({
         for that.
       </p>
 
-      <EditableExtractedFields fields={fields} setFields={setFields} />
+      <EditableExtractedFields fields={fields} setFields={setFields} clientGstin={clientGstin} vendorGstinMaster={vendorGstinMaster} />
 
       <LedgerTdsFields
         state={{ expenseLedger, setExpenseLedger, tdsCode, setTdsCode, tdsRate, setTdsRate, tdsAmount, setTdsAmount, grossUp, setGrossUp, netAmount, setNetAmount }}

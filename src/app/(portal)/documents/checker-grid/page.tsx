@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchExpenseLedgers } from "@/lib/expense-ledgers/data";
+import { fetchGstVendorMaster } from "@/lib/gst-vendors/data";
 import type { Client, Document, ExpenseLedger, Profile, Review, TdsCode, Vendor } from "@/lib/supabase/types";
 import CheckerGrid, { type CheckerGridRow } from "./checker-grid";
 
@@ -88,8 +89,10 @@ export default async function CheckerGridPage({ searchParams }: { searchParams: 
   });
 
   const expenseLedgersByClient: Record<string, ExpenseLedger[]> = {};
+  const vendorGstinsByClient: Record<string, string[]> = {};
   for (const clientId of new Set(rows.map((r) => r.clientId).filter(Boolean))) {
     expenseLedgersByClient[clientId] = await fetchExpenseLedgers(supabase, clientId);
+    vendorGstinsByClient[clientId] = (await fetchGstVendorMaster(supabase, clientId)).map((g) => g.gstin);
   }
 
   const filterActive = params.vendorId || params.clientId || params.submittedFrom || params.submittedTo;
@@ -156,7 +159,7 @@ export default async function CheckerGridPage({ searchParams }: { searchParams: 
         </a>
       </form>
 
-      <CheckerGrid rows={rows} tdsCodes={codes ?? []} expenseLedgersByClient={expenseLedgersByClient} />
+      <CheckerGrid rows={rows} tdsCodes={codes ?? []} expenseLedgersByClient={expenseLedgersByClient} vendorGstinsByClient={vendorGstinsByClient} />
     </main>
   );
 }

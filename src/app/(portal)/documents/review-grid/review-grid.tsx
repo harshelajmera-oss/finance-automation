@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { submitReview, getDocumentViewUrl, archiveDocument } from "../actions";
 import { computeGrossUp } from "@/lib/tds/gross-up";
 import { formatNumber } from "@/lib/format";
+import { GstinBadge, clientGstinStatus, vendorGstinStatus } from "@/lib/validation/gstin-match";
 import type { ExtractedFields, ValidationFlag } from "@/lib/extraction/schema";
 import type { ExpenseLedger, PaymentRoute, TdsCode, Vendor } from "@/lib/supabase/types";
 
@@ -131,10 +132,23 @@ function initRowState(row: GridDocRow, tdsCodes: TdsCode[]): RowState {
   };
 }
 
-function Field({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
+function Field({
+  label,
+  children,
+  className = "",
+  labelExtra,
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+  labelExtra?: React.ReactNode;
+}) {
   return (
     <div className={className}>
-      <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-400">{label}</label>
+      <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-400">
+        {label}
+        {labelExtra}
+      </label>
       {children}
     </div>
   );
@@ -170,10 +184,12 @@ export default function ReviewGrid({
   rows,
   tdsCodes,
   expenseLedgersByClient,
+  vendorGstinsByClient,
 }: {
   rows: GridDocRow[];
   tdsCodes: TdsCode[];
   expenseLedgersByClient: Record<string, ExpenseLedger[]>;
+  vendorGstinsByClient: Record<string, string[]>;
 }) {
   const router = useRouter();
   const [states, setStates] = useState<Record<string, RowState>>(() =>
@@ -410,6 +426,7 @@ export default function ReviewGrid({
           const state = states[row.documentId] ?? initRowState(row, tdsCodes);
           const hasErrorFlags = row.flags.some((f) => f.severity === "error");
           const expenseLedgers = expenseLedgersByClient[row.clientId] ?? [];
+          const vendorGstins = vendorGstinsByClient[row.clientId] ?? [];
           return (
             <div
               key={row.documentId}
@@ -425,6 +442,12 @@ export default function ReviewGrid({
                 <span className="font-medium text-slate-900">
                   {row.clientName} ({row.clientCode})
                 </span>
+                {row.fields.billed_to.gstin && (
+                  <span className="text-xs text-slate-400">
+                    billed-to GSTIN
+                    <GstinBadge status={clientGstinStatus(row.fields.billed_to.gstin, row.clientGstin)} />
+                  </span>
+                )}
                 <span className="text-sm text-slate-400">{row.originalFilename}</span>
                 {row.vendorMatch ? (
                   <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
@@ -473,7 +496,7 @@ export default function ReviewGrid({
                 <Field label="Vendor name">
                   <GText value={state.vendorName} onChange={(v) => patch(row.documentId, (s) => ({ ...s, vendorName: v }))} />
                 </Field>
-                <Field label="Vendor GSTIN">
+                <Field label="Vendor GSTIN" labelExtra={<GstinBadge status={vendorGstinStatus(state.vendorGstin, vendorGstins)} />}>
                   <GText value={state.vendorGstin} onChange={(v) => patch(row.documentId, (s) => ({ ...s, vendorGstin: v }))} />
                 </Field>
                 <Field label="Vendor PAN">

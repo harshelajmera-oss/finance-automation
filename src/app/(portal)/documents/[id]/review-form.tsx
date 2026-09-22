@@ -16,6 +16,8 @@ export default function ReviewForm({
   possibleNameMatches,
   tdsCodes,
   expenseLedgers,
+  clientGstin,
+  vendorGstinMaster,
   rejectionComment,
 }: {
   documentId: string;
@@ -25,6 +27,8 @@ export default function ReviewForm({
   possibleNameMatches: Vendor[];
   tdsCodes: TdsCode[];
   expenseLedgers: ExpenseLedger[];
+  clientGstin: string | null;
+  vendorGstinMaster: string[];
   rejectionComment?: string | null;
 }) {
   const router = useRouter();
@@ -121,7 +125,7 @@ export default function ReviewForm({
         </div>
       )}
 
-      <EditableExtractedFields fields={fields} setFields={setFields} />
+      <EditableExtractedFields fields={fields} setFields={setFields} clientGstin={clientGstin} vendorGstinMaster={vendorGstinMaster} />
 
       <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="mb-3 text-sm font-semibold text-slate-900">Vendor match</h2>

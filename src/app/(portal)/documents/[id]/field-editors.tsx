@@ -2,6 +2,7 @@
 
 import { computeGrossUp } from "@/lib/tds/gross-up";
 import { formatNumber } from "@/lib/format";
+import { GstinBadge, clientGstinStatus, vendorGstinStatus } from "@/lib/validation/gstin-match";
 import type { ExtractedFields } from "@/lib/extraction/schema";
 import type { ExpenseLedger, PaymentRoute, TdsCode } from "@/lib/supabase/types";
 
@@ -26,18 +27,37 @@ function computeGstTotal(amounts: Pick<Amounts, "taxable_value" | "cgst" | "sgst
   return amounts.taxable_value + (amounts.cgst ?? 0) + (amounts.sgst ?? 0) + (amounts.igst ?? 0);
 }
 
+/** Sum of every line item's Amount — null (not zero) when none has one yet, so it doesn't clobber a value Claude already read. */
+function sumLineItemAmounts(lineItems: ExtractedFields["service"]["line_items"]): number | null {
+  const amounts = lineItems.map((l) => l.amount).filter((a): a is number => a !== null);
+  if (amounts.length === 0) return null;
+  return amounts.reduce((sum, a) => sum + a, 0);
+}
+
+/** Recomputes Taxable value from the line items' Amount column, then Total from that — the same auto-fill chain as editing Taxable value directly. */
+function recalcFromLineItems(f: ExtractedFields): ExtractedFields {
+  const taxable_value = sumLineItemAmounts(f.service.line_items);
+  const amounts = { ...f.amounts, taxable_value };
+  return { ...f, amounts: { ...amounts, total: computeGstTotal(amounts) } };
+}
+
 export function TextInput({
   label,
   value,
   onChange,
+  labelExtra,
 }: {
   label: string;
   value: string | null;
   onChange: (v: string) => void;
+  labelExtra?: React.ReactNode;
 }) {
   return (
     <div>
-      <label className="mb-1 block text-xs text-slate-500">{label}</label>
+      <label className="mb-1 block text-xs text-slate-500">
+        {label}
+        {labelExtra}
+      </label>
       <input
         type="text"
         value={value ?? ""}
@@ -114,9 +134,13 @@ export function CheckboxInput({
 export function EditableExtractedFields({
   fields,
   setFields,
+  clientGstin = null,
+  vendorGstinMaster = [],
 }: {
   fields: ExtractedFields;
   setFields: (updater: (f: ExtractedFields) => ExtractedFields) => void;
+  clientGstin?: string | null;
+  vendorGstinMaster?: string[];
 }) {
   return (
     <>
@@ -136,7 +160,12 @@ export function EditableExtractedFields({
         <h2 className="mb-3 text-sm font-semibold text-slate-900">Vendor</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <TextInput label="Name" value={fields.vendor.name} onChange={(v) => setFields((f) => ({ ...f, vendor: { ...f.vendor, name: v } }))} />
-          <TextInput label="GSTIN" value={fields.vendor.gstin} onChange={(v) => setFields((f) => ({ ...f, vendor: { ...f.vendor, gstin: v } }))} />
+          <TextInput
+            label="GSTIN"
+            value={fields.vendor.gstin}
+            onChange={(v) => setFields((f) => ({ ...f, vendor: { ...f.vendor, gstin: v } }))}
+            labelExtra={<GstinBadge status={vendorGstinStatus(fields.vendor.gstin, vendorGstinMaster)} />}
+          />
           <TextInput label="PAN" value={fields.vendor.pan} onChange={(v) => setFields((f) => ({ ...f, vendor: { ...f.vendor, pan: v } }))} />
           <TextInput label="State" value={fields.vendor.state} onChange={(v) => setFields((f) => ({ ...f, vendor: { ...f.vendor, state: v } }))} />
           <TextInput label="Bank account" value={fields.vendor.bank_account} onChange={(v) => setFields((f) => ({ ...f, vendor: { ...f.vendor, bank_account: v } }))} />
@@ -148,7 +177,12 @@ export function EditableExtractedFields({
         <h2 className="mb-3 text-sm font-semibold text-slate-900">Billed to</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <TextInput label="Name" value={fields.billed_to.name} onChange={(v) => setFields((f) => ({ ...f, billed_to: { ...f.billed_to, name: v } }))} />
-          <TextInput label="GSTIN" value={fields.billed_to.gstin} onChange={(v) => setFields((f) => ({ ...f, billed_to: { ...f.billed_to, gstin: v } }))} />
+          <TextInput
+            label="GSTIN"
+            value={fields.billed_to.gstin}
+            onChange={(v) => setFields((f) => ({ ...f, billed_to: { ...f.billed_to, gstin: v } }))}
+            labelExtra={<GstinBadge status={clientGstinStatus(fields.billed_to.gstin, clientGstin)} />}
+          />
           <TextInput label="Place of supply" value={fields.billed_to.place_of_supply} onChange={(v) => setFields((f) => ({ ...f, billed_to: { ...f.billed_to, place_of_supply: v } }))} />
         </div>
       </div>
@@ -168,13 +202,15 @@ export function EditableExtractedFields({
             <button
               type="button"
               onClick={() =>
-                setFields((f) => ({
-                  ...f,
-                  service: {
-                    ...f.service,
-                    line_items: [...f.service.line_items, { description: "", qty: null, rate: null, amount: null }],
-                  },
-                }))
+                setFields((f) =>
+                  recalcFromLineItems({
+                    ...f,
+                    service: {
+                      ...f.service,
+                      line_items: [...f.service.line_items, { description: "", qty: null, rate: null, amount: null }],
+                    },
+                  }),
+                )
               }
               className="text-xs text-slate-600 underline hover:text-slate-900"
             >
@@ -224,19 +260,23 @@ export function EditableExtractedFields({
                     label="Amount"
                     value={line.amount}
                     onChange={(v) =>
-                      setFields((f) => ({
-                        ...f,
-                        service: { ...f.service, line_items: f.service.line_items.map((l, idx) => (idx === i ? { ...l, amount: v } : l)) },
-                      }))
+                      setFields((f) =>
+                        recalcFromLineItems({
+                          ...f,
+                          service: { ...f.service, line_items: f.service.line_items.map((l, idx) => (idx === i ? { ...l, amount: v } : l)) },
+                        }),
+                      )
                     }
                   />
                   <button
                     type="button"
                     onClick={() =>
-                      setFields((f) => ({
-                        ...f,
-                        service: { ...f.service, line_items: f.service.line_items.filter((_, idx) => idx !== i) },
-                      }))
+                      setFields((f) =>
+                        recalcFromLineItems({
+                          ...f,
+                          service: { ...f.service, line_items: f.service.line_items.filter((_, idx) => idx !== i) },
+                        }),
+                      )
                     }
                     className="mb-0.5 text-xs text-red-500 hover:text-red-700"
                   >

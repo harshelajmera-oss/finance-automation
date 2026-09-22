@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/supabase/types";
 import SignOutButton from "./sign-out-button";
+import BackButton from "./back-button";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -24,9 +25,12 @@ export default async function PortalLayout({ children }: { children: React.React
     <div className="flex min-h-screen flex-1 flex-col">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-y-2 px-4 py-3">
-          <Link href="/dashboard" className="text-lg font-semibold text-slate-900">
-            Finance Portal
-          </Link>
+          <div className="flex items-center gap-3">
+            <BackButton />
+            <Link href="/dashboard" className="text-lg font-semibold text-slate-900">
+              Finance Portal
+            </Link>
+          </div>
           <nav className="flex flex-wrap items-center gap-4 text-sm">
             <Link href="/documents" className="text-slate-600 hover:text-slate-900">
               Documents

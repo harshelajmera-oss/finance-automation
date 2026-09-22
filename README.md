@@ -195,7 +195,21 @@ The build sequence has six steps.
   labeled card (client, vendor, flags and actions in a header row, then every field in a
   clearly-labeled grid below) instead of one cramped table row per invoice, and both now have a
   client filter at the top so picking a client shows only that client's records. Both also gained
-  the new Expense Ledger dropdown described above.
+  the new Expense Ledger dropdown described above, and the same live GSTIN badges described next.
+- **Live GSTIN match badges**, next to the GSTIN fields themselves — in the single-document view
+  (both the maker's and checker's editing screens) and both grids. Vendor GSTIN gets a green
+  "match" / amber "not in master" badge checked against that client's GST Vendor Master as you
+  type; billed-to GSTIN (shown next to the client name, since the grids don't have a dedicated
+  billed-to-GSTIN field) gets a green "match" / red "mismatch" badge checked against the client's
+  own GSTIN on file. These are live, editable-field checks, separate from (and faster to read than)
+  the frozen extraction-time validation flag that already existed for the same comparison.
+- **Line items auto-sum into Taxable value**, in the single-document view's Line Items editor —
+  adding, editing, or removing a line's Amount recomputes Taxable value (then Total) automatically,
+  the same auto-fill chain Taxable value already had with CGST/SGST/IGST. Editing Taxable value
+  directly afterward still works and isn't overwritten until a line item changes again.
+- A **Back button** in the header on every portal screen (maker, checker and admin alike), next to
+  the "Finance Portal" logo — goes to whatever page you were on before, via the browser's own
+  history.
 - **Record several payments at once**, `/documents/payments/batch` — a grid alongside the existing
   single "Record a payment" screen, reachable the same way (tick rows on the Approved page). Where
   the original screen makes one payment record with one shared UTR/date covering every selected row

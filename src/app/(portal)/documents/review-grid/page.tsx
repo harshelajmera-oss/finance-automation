@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { findVendorMatch } from "@/lib/vendors/match";
 import { fetchExpenseLedgers } from "@/lib/expense-ledgers/data";
+import { fetchGstVendorMaster } from "@/lib/gst-vendors/data";
 import type { Client, Document, ExpenseLedger, Profile, TdsCode, Vendor } from "@/lib/supabase/types";
 import type { ExtractedFields, ValidationFlag } from "@/lib/extraction/schema";
 import ReviewGrid, { type GridDocRow } from "./review-grid";
@@ -97,8 +98,10 @@ export default async function ReviewGridPage({ searchParams }: { searchParams: P
   }
 
   const expenseLedgersByClient: Record<string, ExpenseLedger[]> = {};
+  const vendorGstinsByClient: Record<string, string[]> = {};
   for (const clientId of new Set(rows.map((r) => r.clientId))) {
     expenseLedgersByClient[clientId] = await fetchExpenseLedgers(supabase, clientId);
+    vendorGstinsByClient[clientId] = (await fetchGstVendorMaster(supabase, clientId)).map((g) => g.gstin);
   }
 
   return (
@@ -125,7 +128,7 @@ export default async function ReviewGridPage({ searchParams }: { searchParams: P
         and submit several at once. Anything needing the full document view (line items, IRN, notes)
         still has an &quot;Open&quot; link.
       </p>
-      <ReviewGrid rows={rows} tdsCodes={tdsCodes} expenseLedgersByClient={expenseLedgersByClient} />
+      <ReviewGrid rows={rows} tdsCodes={tdsCodes} expenseLedgersByClient={expenseLedgersByClient} vendorGstinsByClient={vendorGstinsByClient} />
     </main>
   );
 }
