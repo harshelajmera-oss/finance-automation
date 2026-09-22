@@ -3,6 +3,7 @@
 import { computeGrossUp } from "@/lib/tds/gross-up";
 import { formatNumber } from "@/lib/format";
 import { GstinBadge, GstMasterProposeButton, clientGstinStatus, vendorGstinStatus } from "@/lib/validation/gstin-match";
+import { sumLineItemAmounts } from "@/lib/extraction/line-items";
 import type { ExtractedFields } from "@/lib/extraction/schema";
 import type { ExpenseLedger, PaymentRoute, TdsCode } from "@/lib/supabase/types";
 
@@ -25,13 +26,6 @@ function applyGstEdit(amounts: Amounts, field: "cgst" | "sgst" | "igst", value: 
 function computeGstTotal(amounts: Pick<Amounts, "taxable_value" | "cgst" | "sgst" | "igst">): number | null {
   if (amounts.taxable_value === null) return null;
   return amounts.taxable_value + (amounts.cgst ?? 0) + (amounts.sgst ?? 0) + (amounts.igst ?? 0);
-}
-
-/** Sum of every line item's Amount — null (not zero) when none has one yet, so it doesn't clobber a value Claude already read. */
-function sumLineItemAmounts(lineItems: ExtractedFields["service"]["line_items"]): number | null {
-  const amounts = lineItems.map((l) => l.amount).filter((a): a is number => a !== null);
-  if (amounts.length === 0) return null;
-  return amounts.reduce((sum, a) => sum + a, 0);
 }
 
 /** Recomputes Taxable value from the line items' Amount column, then Total from that — the same auto-fill chain as editing Taxable value directly. */

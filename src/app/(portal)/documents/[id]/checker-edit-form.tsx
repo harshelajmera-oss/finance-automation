@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { checkerDecide } from "../actions";
 import { DocumentVendorFields, AmountsNotesFields, LedgerTdsFields, PaymentRouteField } from "./field-editors";
+import { ensureTaxableValueFromLineItems } from "@/lib/extraction/line-items";
 import { formatNumber } from "@/lib/format";
 import type { ExtractedFields, ValidationFlag } from "@/lib/extraction/schema";
 import type { ExpenseLedger, PaymentRoute, Review, TdsCode } from "@/lib/supabase/types";
@@ -31,7 +32,7 @@ export default function CheckerEditForm({
   vendorPendingId: string | null;
 }) {
   const router = useRouter();
-  const [fields, setFields] = useState<ExtractedFields>(review.reviewed_fields);
+  const [fields, setFields] = useState<ExtractedFields>(() => ensureTaxableValueFromLineItems(review.reviewed_fields));
   const [expenseLedger, setExpenseLedger] = useState(review.expense_ledger ?? "");
   const [tdsCode, setTdsCode] = useState(review.tds_code ?? "");
   const [tdsRate, setTdsRate] = useState<number | null>(review.tds_rate);

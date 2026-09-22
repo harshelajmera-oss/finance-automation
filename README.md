@@ -313,6 +313,15 @@ The build sequence has six steps.
   - Removed the standalone **Checker queue** screen — a plain list that only ever linked into the
     single-document view, fully superseded by the Approve grid (which shows the same submitted
     items and lets a checker decide inline). Checkers now land on the Approve grid directly.
+- **Taxable value now auto-fills from line items on first load**, not just when someone edits a
+  line item by hand — a document with line items but no separately-extracted Taxable value (e.g.
+  a services invoice that only states a grand total) used to show a blank Taxable value until
+  someone happened to touch a line item's Amount. Fixed in the single-document screens and both
+  grids alike, from one shared rule.
+- **Taxable value is now clickable in both grids** — a small "view items" link opens a popover
+  showing the nature-of-service description and the full line-item breakdown (description, qty,
+  rate, amount) without leaving the grid to open the document. Closes on an outside click or its
+  own ✕.
 
 Not yet built: email intake (needs a Google account connection), Google Drive filing, payments, and
 the Google Sheets/Tally exports.

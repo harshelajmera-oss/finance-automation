@@ -4,9 +4,11 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { submitReview, getDocumentViewUrl, archiveDocument } from "../actions";
+import LineItemsPopover from "../line-items-popover";
 import { computeGrossUp } from "@/lib/tds/gross-up";
 import { formatNumber } from "@/lib/format";
 import { GstinBadge, GstMasterProposeButton, clientGstinStatus, vendorGstinStatus } from "@/lib/validation/gstin-match";
+import { ensureTaxableValueFromLineItems } from "@/lib/extraction/line-items";
 import type { ExtractedFields, ValidationFlag } from "@/lib/extraction/schema";
 import type { ExpenseLedger, PaymentRoute, TdsCode, TdsTreatment, Vendor } from "@/lib/supabase/types";
 
@@ -104,7 +106,8 @@ function applyGstEdit(s: RowState, field: "cgst" | "sgst" | "igst", value: numbe
 }
 
 function initRowState(row: GridDocRow, tdsCodes: TdsCode[]): RowState {
-  const payout = row.fields.payout ?? null;
+  const fields = ensureTaxableValueFromLineItems(row.fields);
+  const payout = fields.payout ?? null;
   const vendorMatch = row.vendorMatch;
   const tdsRate = vendorMatch?.last_tds_rate ?? payout?.tds_rate_percent ?? null;
   const payoutCodeGuess = payout ? tdsCodes.find((c) => tdsRate !== null && Math.abs(c.default_rate - tdsRate) < 0.5) : null;
@@ -116,12 +119,12 @@ function initRowState(row: GridDocRow, tdsCodes: TdsCode[]): RowState {
     billedToName: row.fields.billed_to.name ?? "",
     natureOfService: row.fields.service.description ?? "",
     expenseLedgerName: vendorMatch?.default_expense_ledger ?? "",
-    taxableValue: row.fields.amounts.taxable_value,
-    igst: row.fields.amounts.igst,
-    cgst: row.fields.amounts.cgst,
-    sgst: row.fields.amounts.sgst,
-    total: row.fields.amounts.total,
-    amountAlreadyPaid: row.fields.amounts.amount_already_paid,
+    taxableValue: fields.amounts.taxable_value,
+    igst: fields.amounts.igst,
+    cgst: fields.amounts.cgst,
+    sgst: fields.amounts.sgst,
+    total: fields.amounts.total,
+    amountAlreadyPaid: fields.amounts.amount_already_paid,
     bankAccount: row.fields.vendor.bank_account ?? "",
     ifsc: row.fields.vendor.ifsc ?? "",
     grossUp: vendorMatch?.gross_up ?? payout?.is_gross_up ?? false,
@@ -548,7 +551,10 @@ export default function ReviewGrid({
                   </select>
                 </Field>
 
-                <Field label="Taxable value">
+                <Field
+                  label="Taxable value"
+                  labelExtra={<LineItemsPopover description={row.fields.service.description} lineItems={row.fields.service.line_items} />}
+                >
                   <GNumber
                     value={state.taxableValue}
                     onChange={(v) => patchAndRecalc(row.documentId, (s) => ({ ...s, taxableValue: v }))}

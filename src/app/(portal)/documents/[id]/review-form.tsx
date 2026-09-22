@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { submitReview } from "../actions";
 import { TextInput, DocumentVendorFields, AmountsNotesFields, LedgerTdsFields, PaymentRouteField } from "./field-editors";
+import { ensureTaxableValueFromLineItems } from "@/lib/extraction/line-items";
 import { formatNumber } from "@/lib/format";
 import type { ExtractedFields, ValidationFlag } from "@/lib/extraction/schema";
 import type { ExpenseLedger, PaymentRoute, TdsCode, TdsTreatment, Vendor } from "@/lib/supabase/types";
@@ -34,7 +35,7 @@ export default function ReviewForm({
   rejectionComment?: string | null;
 }) {
   const router = useRouter();
-  const [fields, setFields] = useState<ExtractedFields>(initialFields);
+  const [fields, setFields] = useState<ExtractedFields>(() => ensureTaxableValueFromLineItems(initialFields));
   const payout = initialFields.payout ?? null;
   const payoutTdsCodeGuess = payout
     ? tdsCodes.find((c) => payout.tds_rate_percent !== null && Math.abs(c.default_rate - payout.tds_rate_percent) < 0.5)

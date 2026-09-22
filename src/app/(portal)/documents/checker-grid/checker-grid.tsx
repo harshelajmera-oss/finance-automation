@@ -4,9 +4,11 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { checkerDecide, getDocumentViewUrl } from "../actions";
+import LineItemsPopover from "../line-items-popover";
 import { computeGrossUp } from "@/lib/tds/gross-up";
 import { formatNumber } from "@/lib/format";
 import { GstinBadge, GstMasterProposeButton, clientGstinStatus, vendorGstinStatus } from "@/lib/validation/gstin-match";
+import { ensureTaxableValueFromLineItems } from "@/lib/extraction/line-items";
 import type { ExtractedFields } from "@/lib/extraction/schema";
 import type { ExpenseLedger, PaymentRoute, TdsCode, TdsTreatment, Vendor } from "@/lib/supabase/types";
 
@@ -116,6 +118,7 @@ function applyGstEdit(s: RowState, field: "cgst" | "sgst" | "igst", value: numbe
 }
 
 function initRowState(row: CheckerGridRow): RowState {
+  const fields = ensureTaxableValueFromLineItems(row.fields);
   return {
     vendorName: row.fields.vendor.name ?? "",
     vendorGstin: row.fields.vendor.gstin ?? "",
@@ -123,16 +126,16 @@ function initRowState(row: CheckerGridRow): RowState {
     billedToName: row.fields.billed_to.name ?? "",
     natureOfService: row.fields.service.description ?? "",
     expenseLedgerName: row.expenseLedger ?? "",
-    taxableValue: row.fields.amounts.taxable_value,
-    igst: row.fields.amounts.igst,
-    cgst: row.fields.amounts.cgst,
-    sgst: row.fields.amounts.sgst,
-    total: row.fields.amounts.total,
-    amountAlreadyPaid: row.fields.amounts.amount_already_paid,
+    taxableValue: fields.amounts.taxable_value,
+    igst: fields.amounts.igst,
+    cgst: fields.amounts.cgst,
+    sgst: fields.amounts.sgst,
+    total: fields.amounts.total,
+    amountAlreadyPaid: fields.amounts.amount_already_paid,
     bankAccount: row.fields.vendor.bank_account ?? "",
     ifsc: row.fields.vendor.ifsc ?? "",
     grossUp: row.grossUp,
-    netAmount: row.fields.payout?.net ?? null,
+    netAmount: fields.payout?.net ?? null,
     tdsCode: row.tdsCode ?? "",
     tdsRate: row.tdsRate,
     tdsAmount: row.tdsAmount,
@@ -497,7 +500,10 @@ export default function CheckerGrid({
                   </select>
                 </Field>
 
-                <Field label="Taxable value">
+                <Field
+                  label="Taxable value"
+                  labelExtra={<LineItemsPopover description={row.fields.service.description} lineItems={row.fields.service.line_items} />}
+                >
                   <GNumber
                     value={state.taxableValue}
                     onChange={(v) => patchAndRecalc(row.reviewId, (s) => ({ ...s, taxableValue: v }))}
