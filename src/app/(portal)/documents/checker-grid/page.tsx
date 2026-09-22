@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchExpenseLedgers } from "@/lib/expense-ledgers/data";
 import { fetchGstVendorMaster } from "@/lib/gst-vendors/data";
 import type { Client, Document, ExpenseLedger, Profile, Review, TdsCode, Vendor } from "@/lib/supabase/types";
-import CheckerGrid, { type CheckerGridRow } from "./checker-grid";
+import type { ValidationFlag } from "@/lib/extraction/schema";
+import DocumentGrid, { type GridRow } from "../document-grid";
 
 type ReviewRow = Review & {
   documents:
@@ -53,36 +54,59 @@ export default async function CheckerGridPage({ searchParams }: { searchParams: 
     supabase.from("clients").select("*").order("name", { ascending: true }).returns<Client[]>(),
   ]);
 
-  const allRows: CheckerGridRow[] = (reviews ?? [])
+  // Flags come from the extraction, not the review — fetched separately so
+  // the checker sees the same red/amber flags the maker saw, without
+  // duplicating the validation logic here.
+  const docIds = (reviews ?? []).map((r) => r.documents?.id ?? r.document_id).filter(Boolean) as string[];
+  const flagsByDocument = new Map<string, ValidationFlag[]>();
+  if (docIds.length > 0) {
+    const { data: extractions } = await supabase
+      .from("extractions")
+      .select("document_id, flags, created_at")
+      .in("document_id", docIds)
+      .eq("status", "completed")
+      .order("created_at", { ascending: false });
+    for (const e of extractions ?? []) {
+      if (!flagsByDocument.has(e.document_id)) flagsByDocument.set(e.document_id, (e.flags ?? []) as ValidationFlag[]);
+    }
+  }
+
+  const allRows: (GridRow & { submittedAt: string; vendorId: string | null })[] = (reviews ?? [])
     .filter((r) => r.submitted_by !== user.id)
-    .map((r) => ({
-      reviewId: r.id,
-      documentId: r.documents?.id ?? r.document_id,
-      clientId: r.documents?.client_id ?? "",
-      originalFilename: r.documents?.original_filename ?? "",
-      hasFile: Boolean(r.documents?.storage_path),
-      clientName: r.documents?.clients?.name ?? "—",
-      clientCode: r.documents?.clients?.code ?? "",
-      clientGstin: r.documents?.clients?.gstin ?? null,
-      fields: r.checker_edited_fields ?? r.reviewed_fields,
-      vendor: r.vendors,
-      vendorPendingId: r.vendors && !r.vendors.is_approved ? r.vendors.id : null,
-      expenseLedger: r.expense_ledger,
-      tdsCode: r.tds_code,
-      tdsRate: r.tds_rate,
-      tdsAmount: r.tds_amount,
-      grossUp: r.gross_up,
-      paymentRoute: r.payment_route,
-      overrideReason: r.override_reason,
-      submittedAt: r.submitted_at,
-    }));
+    .map((r) => {
+      const documentId = r.documents?.id ?? r.document_id;
+      return {
+        documentId,
+        reviewId: r.id,
+        clientId: r.documents?.client_id ?? "",
+        originalFilename: r.documents?.original_filename ?? "",
+        hasFile: Boolean(r.documents?.storage_path),
+        clientName: r.documents?.clients?.name ?? "—",
+        clientCode: r.documents?.clients?.code ?? "",
+        clientGstin: r.documents?.clients?.gstin ?? null,
+        fields: r.checker_edited_fields ?? r.reviewed_fields,
+        flags: flagsByDocument.get(documentId) ?? [],
+        vendorMatch: r.vendors,
+        possibleNameMatches: [],
+        rejectionComment: null,
+        overrideReason: r.override_reason,
+        expenseLedger: r.expense_ledger,
+        tdsCode: r.tds_code,
+        tdsRate: r.tds_rate,
+        tdsAmount: r.tds_amount,
+        grossUp: r.gross_up,
+        paymentRoute: r.payment_route,
+        submittedAt: r.submitted_at,
+        vendorId: r.vendors?.id ?? null,
+      };
+    });
 
   const vendorOptions = Array.from(
-    new Map(allRows.filter((r) => r.vendor).map((r) => [r.vendor!.id, r.vendor!.name])).entries(),
+    new Map(allRows.filter((r) => r.vendorMatch).map((r) => [r.vendorMatch!.id, r.vendorMatch!.name])).entries(),
   );
 
   const rows = allRows.filter((r) => {
-    if (params.vendorId && r.vendor?.id !== params.vendorId) return false;
+    if (params.vendorId && r.vendorId !== params.vendorId) return false;
     if (params.clientId && r.clientId !== params.clientId) return false;
     if (!inRange(r.submittedAt, params.submittedFrom, params.submittedTo)) return false;
     return true;
@@ -159,7 +183,7 @@ export default async function CheckerGridPage({ searchParams }: { searchParams: 
         </a>
       </form>
 
-      <CheckerGrid rows={rows} tdsCodes={codes ?? []} expenseLedgersByClient={expenseLedgersByClient} vendorGstinsByClient={vendorGstinsByClient} />
+      <DocumentGrid mode="approve" rows={rows} tdsCodes={codes ?? []} expenseLedgersByClient={expenseLedgersByClient} vendorGstinsByClient={vendorGstinsByClient} />
     </main>
   );
 }

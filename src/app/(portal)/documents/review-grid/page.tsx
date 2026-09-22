@@ -5,7 +5,7 @@ import { fetchExpenseLedgers } from "@/lib/expense-ledgers/data";
 import { fetchGstVendorMaster } from "@/lib/gst-vendors/data";
 import type { Client, Document, ExpenseLedger, Profile, TdsCode, Vendor } from "@/lib/supabase/types";
 import type { ExtractedFields, ValidationFlag } from "@/lib/extraction/schema";
-import ReviewGrid, { type GridDocRow } from "./review-grid";
+import DocumentGrid, { type GridRow } from "../document-grid";
 
 type DocumentRow = Document & { clients: Pick<Client, "name" | "code" | "gstin"> | null };
 
@@ -36,7 +36,7 @@ export default async function ReviewGridPage({ searchParams }: { searchParams: P
   const docs = documents ?? [];
   const docIds = docs.map((d) => d.id);
 
-  const rows: GridDocRow[] = [];
+  const rows: GridRow[] = [];
   let tdsCodes: TdsCode[] = [];
 
   if (docIds.length > 0) {
@@ -82,6 +82,7 @@ export default async function ReviewGridPage({ searchParams }: { searchParams: P
 
       rows.push({
         documentId: doc.id,
+        reviewId: null,
         clientId: doc.client_id,
         originalFilename: doc.original_filename,
         hasFile: doc.storage_path !== null,
@@ -93,6 +94,13 @@ export default async function ReviewGridPage({ searchParams }: { searchParams: P
         vendorMatch: match.vendor as Vendor | null,
         possibleNameMatches: match.possibleNameMatches as Vendor[],
         rejectionComment: rejection?.comment ?? null,
+        overrideReason: null,
+        expenseLedger: null,
+        tdsCode: null,
+        tdsRate: null,
+        tdsAmount: null,
+        grossUp: null,
+        paymentRoute: null,
       });
     }
   }
@@ -125,10 +133,10 @@ export default async function ReviewGridPage({ searchParams }: { searchParams: P
       </div>
       <p className="mb-6 text-sm text-slate-500">
         Everything ready for your review — edit fields directly, tick the ones you&apos;re done with,
-        and submit several at once. Anything needing the full document view (line items, IRN, notes)
-        still has an &quot;Open&quot; link.
+        and submit several at once. Anything needing the full document view (line items, notes) still
+        has an &quot;Open&quot; link.
       </p>
-      <ReviewGrid rows={rows} tdsCodes={tdsCodes} expenseLedgersByClient={expenseLedgersByClient} vendorGstinsByClient={vendorGstinsByClient} />
+      <DocumentGrid mode="review" rows={rows} tdsCodes={tdsCodes} expenseLedgersByClient={expenseLedgersByClient} vendorGstinsByClient={vendorGstinsByClient} />
     </main>
   );
 }

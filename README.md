@@ -322,6 +322,15 @@ The build sequence has six steps.
   showing the nature-of-service description and the full line-item breakdown (description, qty,
   rate, amount) without leaving the grid to open the document. Closes on an outside click or its
   own ✕.
+- **The Review grid and Approve grid are now one shared component** (`DocumentGrid`, mode
+  `"review"` or `"approve"`), not two hand-written copies — this is the fix for "I found the same
+  bug in only one of the two grids" (the TDS-none bug, the missing recalculate button, and the
+  new-vendor fields all had to be fixed twice earlier in this project for exactly that reason).
+  One side effect of merging: the Approve grid now also shows extraction flags (the same red/amber
+  flags the maker saw), the maker's override reason when they submitted despite one, and a
+  per-row "Submit" button in the Review grid to match the Approve grid's per-row Approve/Reject —
+  none of that existed before. Nothing else about either grid's fields, columns, or filters
+  changed.
 
 Not yet built: email intake (needs a Google account connection), Google Drive filing, payments, and
 the Google Sheets/Tally exports.
