@@ -8,7 +8,7 @@ import { computeGrossUp } from "@/lib/tds/gross-up";
 import { formatNumber } from "@/lib/format";
 import { GstinBadge, clientGstinStatus, vendorGstinStatus } from "@/lib/validation/gstin-match";
 import type { ExtractedFields } from "@/lib/extraction/schema";
-import type { ExpenseLedger, PaymentRoute, TdsCode, Vendor } from "@/lib/supabase/types";
+import type { ExpenseLedger, PaymentRoute, TdsCode, TdsTreatment, Vendor } from "@/lib/supabase/types";
 
 export interface CheckerGridRow {
   reviewId: string;
@@ -55,6 +55,8 @@ interface RowState {
   paymentRoute: PaymentRoute;
   comment: string;
   approveVendor: boolean;
+  newVendorLedger: string;
+  newVendorTreatment: TdsTreatment;
 }
 
 interface Outcome {
@@ -137,6 +139,8 @@ function initRowState(row: CheckerGridRow): RowState {
     paymentRoute: row.paymentRoute,
     comment: "",
     approveVendor: true,
+    newVendorLedger: row.vendor?.tally_ledger_name ?? "",
+    newVendorTreatment: row.vendor?.tds_treatment ?? "deduct",
   };
 }
 
@@ -277,7 +281,15 @@ export default function CheckerGrid({
   }
 
   function decideOne(row: CheckerGridRow, state: RowState, status: "approved" | "rejected") {
-    return checkerDecide(row.reviewId, status, state.comment, status === "approved" && state.approveVendor ? row.vendorPendingId : null, buildEdits(row, state));
+    const approvingVendor = status === "approved" && state.approveVendor && !!row.vendorPendingId;
+    return checkerDecide(
+      row.reviewId,
+      status,
+      state.comment,
+      approvingVendor ? row.vendorPendingId : null,
+      buildEdits(row, state),
+      approvingVendor ? { tallyLedgerName: state.newVendorLedger, tdsTreatment: state.newVendorTreatment } : null,
+    );
   }
 
   function handleReject(row: CheckerGridRow) {
@@ -513,7 +525,7 @@ export default function CheckerGrid({
                     onChange={(e) => {
                       const code = e.target.value;
                       const match = tdsCodes.find((c) => c.code === code);
-                      patchAndRecalc(row.reviewId, (s) => ({ ...s, tdsCode: code, tdsRate: match ? match.default_rate : s.tdsRate }));
+                      patchAndRecalc(row.reviewId, (s) => ({ ...s, tdsCode: code, tdsRate: match ? match.default_rate : 0 }));
                     }}
                     className={inputClass}
                   >
@@ -582,6 +594,34 @@ export default function CheckerGrid({
                   />
                 </Field>
               </div>
+
+              {row.vendorPendingId && (
+                <div className="mt-3 rounded border border-amber-200 bg-amber-50 p-3">
+                  <p className="mb-2 text-xs font-medium text-amber-800">
+                    New vendor — Tally ledger name and TDS treatment (optional; leave ledger name blank to use vendor name)
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    <Field label="Tally ledger name">
+                      <GText
+                        value={state.newVendorLedger}
+                        onChange={(v) => patch(row.reviewId, (s) => ({ ...s, newVendorLedger: v }))}
+                      />
+                    </Field>
+                    <Field label="TDS treatment">
+                      <select
+                        value={state.newVendorTreatment}
+                        onChange={(e) =>
+                          patch(row.reviewId, (s) => ({ ...s, newVendorTreatment: e.target.value as TdsTreatment }))
+                        }
+                        className={inputClass}
+                      >
+                        <option value="deduct">Deduct at payment</option>
+                        <option value="pay_gross_recover">Pay gross and recover</option>
+                      </select>
+                    </Field>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}

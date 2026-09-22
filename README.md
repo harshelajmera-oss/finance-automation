@@ -210,6 +210,17 @@ The build sequence has six steps.
 - A **Back button** in the header on every portal screen (maker, checker and admin alike), next to
   the "Finance Portal" logo — goes to whatever page you were on before, via the browser's own
   history.
+- **Review grid fixes**: selecting "— none —" as the TDS code now correctly means 0% TDS
+  everywhere (Review grid, Approve grid, and the single-document editor) instead of silently
+  leaving whatever rate/amount was there before. The Review grid also gained the same manual
+  "↻" recalculate button next to Net amt that the Approve grid already had, for when auto-fill
+  needs a nudge after an out-of-order edit.
+- **New-vendor Tally details, directly in both grids** — when a row would create a new vendor
+  (Review grid) or is approving one still pending (Approve grid), an amber box now lets you set
+  that vendor's Tally ledger name and TDS treatment right there, instead of having to open the
+  single document first. Tally ledger name is optional: leaving it blank makes the Tally export
+  fall back to the vendor's plain name, so there's nothing to fill in unless you want the ledger
+  called something different from the vendor name itself.
 - **Record several payments at once**, `/documents/payments/batch` — a grid alongside the existing
   single "Record a payment" screen, reachable the same way (tick rows on the Approved page). Where
   the original screen makes one payment record with one shared UTR/date covering every selected row

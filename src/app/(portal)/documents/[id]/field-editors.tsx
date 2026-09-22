@@ -429,7 +429,13 @@ export function LedgerTdsFields({
               const code = e.target.value;
               setTdsCode(code);
               const match = tdsCodes.find((c) => c.code === code);
-              if (match) setTdsRate(match.default_rate);
+              if (match) {
+                setTdsRate(match.default_rate);
+              } else {
+                // "— none —" means no TDS applies, not "leave the last rate/amount alone".
+                setTdsRate(0);
+                setTdsAmount(0);
+              }
             }}
             className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
           >

@@ -8,7 +8,7 @@ import { computeGrossUp } from "@/lib/tds/gross-up";
 import { formatNumber } from "@/lib/format";
 import { GstinBadge, clientGstinStatus, vendorGstinStatus } from "@/lib/validation/gstin-match";
 import type { ExtractedFields, ValidationFlag } from "@/lib/extraction/schema";
-import type { ExpenseLedger, PaymentRoute, TdsCode, Vendor } from "@/lib/supabase/types";
+import type { ExpenseLedger, PaymentRoute, TdsCode, TdsTreatment, Vendor } from "@/lib/supabase/types";
 
 export interface GridDocRow {
   documentId: string;
@@ -47,6 +47,8 @@ interface RowState {
   tdsAmount: number | null;
   paymentRoute: PaymentRoute;
   overrideReason: string;
+  newVendorLedger: string;
+  newVendorTreatment: TdsTreatment;
 }
 
 interface Outcome {
@@ -129,6 +131,8 @@ function initRowState(row: GridDocRow, tdsCodes: TdsCode[]): RowState {
     tdsAmount: payout?.tds ?? null,
     paymentRoute: "portal",
     overrideReason: "",
+    newVendorLedger: "",
+    newVendorTreatment: "deduct",
   };
 }
 
@@ -266,6 +270,10 @@ export default function ReviewGrid({
     patch(id, (s) => recalcAmounts(updater(s)));
   }
 
+  function handleRecalc(id: string) {
+    patch(id, (s) => recalcAmounts(s));
+  }
+
   function toggle(id: string) {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -309,7 +317,7 @@ export default function ReviewGrid({
           tallyLedgerName: row.vendorMatch.tally_ledger_name ?? "",
           tdsTreatment: row.vendorMatch.tds_treatment,
         }
-      : { name: state.vendorName.trim(), tallyLedgerName: "", tdsTreatment: "deduct" as const };
+      : { name: state.vendorName.trim(), tallyLedgerName: state.newVendorLedger.trim(), tdsTreatment: state.newVendorTreatment };
 
     return {
       reviewedFields: fields,
@@ -568,7 +576,7 @@ export default function ReviewGrid({
                     onChange={(e) => {
                       const code = e.target.value;
                       const match = tdsCodes.find((c) => c.code === code);
-                      patchAndRecalc(row.documentId, (s) => ({ ...s, tdsCode: code, tdsRate: match ? match.default_rate : s.tdsRate }));
+                      patchAndRecalc(row.documentId, (s) => ({ ...s, tdsCode: code, tdsRate: match ? match.default_rate : 0 }));
                     }}
                     className={inputClass}
                   >
@@ -590,15 +598,25 @@ export default function ReviewGrid({
                       onChange={(v) => patchAndRecalc(row.documentId, (s) => ({ ...s, netAmount: v }))}
                     />
                   ) : (
-                    <span className="block px-1 py-1.5 text-slate-500">
-                      {(() => {
-                        const net =
-                          state.total !== null && state.tdsAmount !== null
-                            ? state.total - state.tdsAmount - (state.amountAlreadyPaid ?? 0)
-                            : null;
-                        return net !== null ? formatNumber(net) : "—";
-                      })()}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className="block px-1 py-1.5 text-slate-500">
+                        {(() => {
+                          const net =
+                            state.total !== null && state.tdsAmount !== null
+                              ? state.total - state.tdsAmount - (state.amountAlreadyPaid ?? 0)
+                              : null;
+                          return net !== null ? formatNumber(net) : "—";
+                        })()}
+                      </span>
+                      <button
+                        type="button"
+                        title="Recalculate from Taxable value, GST, TDS and Already paid"
+                        onClick={() => handleRecalc(row.documentId)}
+                        className="rounded border border-slate-300 px-1.5 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                      >
+                        ↻
+                      </button>
+                    </div>
                   )}
                 </Field>
                 <Field label="TDS amt">
@@ -624,6 +642,34 @@ export default function ReviewGrid({
                   </select>
                 </Field>
               </div>
+
+              {!row.vendorMatch && (
+                <div className="mt-3 rounded border border-amber-200 bg-amber-50 p-3">
+                  <p className="mb-2 text-xs font-medium text-amber-800">
+                    New vendor — Tally ledger name and TDS treatment (optional; leave ledger name blank to use vendor name)
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    <Field label="Tally ledger name">
+                      <GText
+                        value={state.newVendorLedger}
+                        onChange={(v) => patch(row.documentId, (s) => ({ ...s, newVendorLedger: v }))}
+                      />
+                    </Field>
+                    <Field label="TDS treatment">
+                      <select
+                        value={state.newVendorTreatment}
+                        onChange={(e) =>
+                          patch(row.documentId, (s) => ({ ...s, newVendorTreatment: e.target.value as TdsTreatment }))
+                        }
+                        className={inputClass}
+                      >
+                        <option value="deduct">Deduct at payment</option>
+                        <option value="pay_gross_recover">Pay gross and recover</option>
+                      </select>
+                    </Field>
+                  </div>
+                </div>
+              )}
 
               {hasErrorFlags && (
                 <textarea

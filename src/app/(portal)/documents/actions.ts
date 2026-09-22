@@ -229,6 +229,7 @@ export async function checkerDecide(
   comment: string,
   approveVendorId: string | null,
   edits: CheckerEdits | null,
+  vendorEdits: { tallyLedgerName: string; tdsTreatment: TdsTreatment } | null = null,
 ) {
   const supabase = await createClient();
   const {
@@ -271,7 +272,12 @@ export async function checkerDecide(
   if (error) throw new Error(error.message);
 
   if (status === "approved" && approveVendorId) {
-    await supabase.from("vendors").update({ is_approved: true }).eq("id", approveVendorId);
+    const vendorUpdate: Record<string, unknown> = { is_approved: true };
+    if (vendorEdits) {
+      vendorUpdate.tally_ledger_name = vendorEdits.tallyLedgerName.trim() || null;
+      vendorUpdate.tds_treatment = vendorEdits.tdsTreatment;
+    }
+    await supabase.from("vendors").update(vendorUpdate).eq("id", approveVendorId);
   }
 
   revalidatePath("/documents/checker-queue");
