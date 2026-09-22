@@ -65,6 +65,8 @@ export interface Vendor {
   default_expense_ledger: string | null;
   last_tds_code: string | null;
   last_tds_rate: number | null;
+  default_tds_code: string | null;
+  default_tds_rate: number | null;
   gross_up: boolean;
   tds_treatment: TdsTreatment;
   is_approved: boolean;

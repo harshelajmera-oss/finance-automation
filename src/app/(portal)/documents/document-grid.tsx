@@ -74,7 +74,7 @@ function initRowState(row: GridRow, tdsCodes: TdsCode[]): RowState {
   const fields = ensureTaxableValueFromLineItems(row.fields);
   const payout = fields.payout ?? null;
   const vendorMatch = row.vendorMatch;
-  const tdsRate = row.tdsRate ?? vendorMatch?.last_tds_rate ?? payout?.tds_rate_percent ?? null;
+  const tdsRate = row.tdsRate ?? vendorMatch?.last_tds_rate ?? payout?.tds_rate_percent ?? vendorMatch?.default_tds_rate ?? null;
   const payoutCodeGuess = payout ? tdsCodes.find((c) => tdsRate !== null && Math.abs(c.default_rate - tdsRate) < 0.5) : null;
 
   return {
@@ -94,7 +94,7 @@ function initRowState(row: GridRow, tdsCodes: TdsCode[]): RowState {
     ifsc: row.fields.vendor.ifsc ?? "",
     grossUp: row.grossUp ?? vendorMatch?.gross_up ?? payout?.is_gross_up ?? false,
     netAmount: payout?.net ?? null,
-    tdsCode: row.tdsCode ?? vendorMatch?.last_tds_code ?? payoutCodeGuess?.code ?? "",
+    tdsCode: row.tdsCode ?? vendorMatch?.last_tds_code ?? payoutCodeGuess?.code ?? vendorMatch?.default_tds_code ?? "",
     tdsRate,
     tdsAmount: row.tdsAmount ?? payout?.tds ?? null,
     paymentRoute: row.paymentRoute ?? "portal",

@@ -45,9 +45,9 @@ export default function ReviewForm({
   const [newVendorName, setNewVendorName] = useState(initialFields.vendor.name ?? "");
   const [newVendorLedger, setNewVendorLedger] = useState("");
   const [newVendorTreatment, setNewVendorTreatment] = useState<TdsTreatment>("deduct");
-  const [tdsCode, setTdsCode] = useState(vendorMatch?.last_tds_code ?? payoutTdsCodeGuess?.code ?? "");
+  const [tdsCode, setTdsCode] = useState(vendorMatch?.last_tds_code ?? payoutTdsCodeGuess?.code ?? vendorMatch?.default_tds_code ?? "");
   const [tdsRate, setTdsRate] = useState<number | null>(
-    vendorMatch?.last_tds_rate ?? payout?.tds_rate_percent ?? null,
+    vendorMatch?.last_tds_rate ?? payout?.tds_rate_percent ?? vendorMatch?.default_tds_rate ?? null,
   );
   const [tdsAmount, setTdsAmount] = useState<number | null>(payout?.tds ?? null);
   const [grossUp, setGrossUp] = useState(vendorMatch?.gross_up ?? payout?.is_gross_up ?? false);

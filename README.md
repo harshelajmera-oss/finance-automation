@@ -331,6 +331,13 @@ The build sequence has six steps.
   per-row "Submit" button in the Review grid to match the Approve grid's per-row Approve/Reject —
   none of that existed before. Nothing else about either grid's fields, columns, or filters
   changed.
+- **A recommended TDS code/rate per vendor**, set once on the admin's vendor edit screen
+  (`/admin/vendors/[id]`) — picking a TDS code there fills in its standard rate, same as choosing
+  one on an invoice does, and both stay independently editable. It's used only as a fallback for a
+  vendor's very first invoice, before there's any real history to learn from: `last_tds_code`/
+  `last_tds_rate` (the vendor's most recently *used* code/rate, updated automatically after every
+  invoice) still take priority once they exist. Every invoice keeps its own editable TDS code and
+  rate regardless — this only changes what the field starts pre-filled with.
 
 Not yet built: email intake (needs a Google account connection), Google Drive filing, payments, and
 the Google Sheets/Tally exports.

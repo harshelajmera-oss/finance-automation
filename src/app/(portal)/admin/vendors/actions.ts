@@ -43,6 +43,8 @@ export async function updateVendor(
     udyam_number: string;
     tally_ledger_name: string;
     default_expense_ledger: string;
+    default_tds_code: string;
+    default_tds_rate: number | null;
     gross_up: boolean;
     tds_treatment: TdsTreatment;
     is_approved: boolean;
@@ -61,6 +63,8 @@ export async function updateVendor(
       udyam_number: updates.udyam_number.trim() || null,
       tally_ledger_name: updates.tally_ledger_name.trim() || null,
       default_expense_ledger: updates.default_expense_ledger.trim() || null,
+      default_tds_code: updates.default_tds_code.trim() || null,
+      default_tds_rate: updates.default_tds_rate,
       gross_up: updates.gross_up,
       tds_treatment: updates.tds_treatment,
       is_approved: updates.is_approved,

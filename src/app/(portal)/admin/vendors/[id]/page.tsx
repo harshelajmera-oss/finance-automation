@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { Profile, Vendor, VendorBankChangeRequest } from "@/lib/supabase/types";
+import type { Profile, TdsCode, Vendor, VendorBankChangeRequest } from "@/lib/supabase/types";
 import EditVendorForm from "./edit-vendor-form";
 import BankChange from "./bank-change";
 
@@ -41,6 +41,8 @@ export default async function VendorDetailPage({ params }: { params: Promise<{ i
     .eq("status", "pending")
     .maybeSingle<VendorBankChangeRequest>();
 
+  const { data: tdsCodes } = await supabase.from("tds_codes").select("*").order("code", { ascending: true }).returns<TdsCode[]>();
+
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-10">
       <Link href="/admin/vendors" className="text-sm text-slate-500 hover:underline">
@@ -52,7 +54,7 @@ export default async function VendorDetailPage({ params }: { params: Promise<{ i
       </p>
 
       <div className="space-y-6">
-        <EditVendorForm vendor={vendor} />
+        <EditVendorForm vendor={vendor} tdsCodes={tdsCodes ?? []} />
         <BankChange vendor={vendor} currentUserId={user.id} pendingRequest={pendingRequest ?? null} />
       </div>
     </main>

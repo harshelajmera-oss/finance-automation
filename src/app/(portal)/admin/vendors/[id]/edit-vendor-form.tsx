@@ -2,9 +2,9 @@
 
 import { useState, useTransition, type FormEvent } from "react";
 import { updateVendor } from "../actions";
-import type { TdsTreatment, Vendor } from "@/lib/supabase/types";
+import type { TdsCode, TdsTreatment, Vendor } from "@/lib/supabase/types";
 
-export default function EditVendorForm({ vendor }: { vendor: Vendor }) {
+export default function EditVendorForm({ vendor, tdsCodes }: { vendor: Vendor; tdsCodes: TdsCode[] }) {
   const [name, setName] = useState(vendor.name);
   const [gstin, setGstin] = useState(vendor.gstin ?? "");
   const [pan, setPan] = useState(vendor.pan ?? "");
@@ -12,6 +12,8 @@ export default function EditVendorForm({ vendor }: { vendor: Vendor }) {
   const [udyamNumber, setUdyamNumber] = useState(vendor.udyam_number ?? "");
   const [tallyLedgerName, setTallyLedgerName] = useState(vendor.tally_ledger_name ?? "");
   const [defaultExpenseLedger, setDefaultExpenseLedger] = useState(vendor.default_expense_ledger ?? "");
+  const [defaultTdsCode, setDefaultTdsCode] = useState(vendor.default_tds_code ?? "");
+  const [defaultTdsRate, setDefaultTdsRate] = useState<number | null>(vendor.default_tds_rate);
   const [grossUp, setGrossUp] = useState(vendor.gross_up);
   const [tdsTreatment, setTdsTreatment] = useState<TdsTreatment>(vendor.tds_treatment);
   const [isApproved, setIsApproved] = useState(vendor.is_approved);
@@ -33,6 +35,8 @@ export default function EditVendorForm({ vendor }: { vendor: Vendor }) {
           udyam_number: udyamNumber,
           tally_ledger_name: tallyLedgerName,
           default_expense_ledger: defaultExpenseLedger,
+          default_tds_code: defaultTdsCode,
+          default_tds_rate: defaultTdsRate,
           gross_up: grossUp,
           tds_treatment: tdsTreatment,
           is_approved: isApproved,
@@ -114,6 +118,43 @@ export default function EditVendorForm({ vendor }: { vendor: Vendor }) {
           className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
         />
       </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Recommended TDS code</label>
+          <select
+            value={defaultTdsCode}
+            onChange={(e) => {
+              const code = e.target.value;
+              setDefaultTdsCode(code);
+              const match = tdsCodes.find((c) => c.code === code);
+              setDefaultTdsRate(match ? match.default_rate : null);
+            }}
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          >
+            <option value="">— none —</option>
+            {tdsCodes.map((c) => (
+              <option key={c.id} value={c.code}>
+                {c.code} — {c.description} ({c.default_rate}%)
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Recommended TDS rate %</label>
+          <input
+            type="number"
+            step="0.01"
+            value={defaultTdsRate ?? ""}
+            onChange={(e) => setDefaultTdsRate(e.target.value === "" ? null : Number(e.target.value))}
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          />
+        </div>
+      </div>
+      <p className="-mt-2 text-xs text-slate-400">
+        Suggested automatically on this vendor&apos;s first invoice, before there&apos;s any history to learn
+        from — always still editable per invoice, same as the rate itself.
+      </p>
 
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">TDS treatment</label>
