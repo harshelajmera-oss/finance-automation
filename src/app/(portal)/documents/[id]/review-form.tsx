@@ -6,7 +6,7 @@ import { submitReview } from "../actions";
 import { TextInput, EditableExtractedFields, LedgerTdsFields, PaymentRouteField } from "./field-editors";
 import { formatNumber } from "@/lib/format";
 import type { ExtractedFields, ValidationFlag } from "@/lib/extraction/schema";
-import type { PaymentRoute, TdsCode, TdsTreatment, Vendor } from "@/lib/supabase/types";
+import type { ExpenseLedger, PaymentRoute, TdsCode, TdsTreatment, Vendor } from "@/lib/supabase/types";
 
 export default function ReviewForm({
   documentId,
@@ -15,6 +15,7 @@ export default function ReviewForm({
   vendorMatch,
   possibleNameMatches,
   tdsCodes,
+  expenseLedgers,
   rejectionComment,
 }: {
   documentId: string;
@@ -23,6 +24,7 @@ export default function ReviewForm({
   vendorMatch: Vendor | null;
   possibleNameMatches: Vendor[];
   tdsCodes: TdsCode[];
+  expenseLedgers: ExpenseLedger[];
   rejectionComment?: string | null;
 }) {
   const router = useRouter();
@@ -161,6 +163,7 @@ export default function ReviewForm({
       <LedgerTdsFields
         state={{ expenseLedger, setExpenseLedger, tdsCode, setTdsCode, tdsRate, setTdsRate, tdsAmount, setTdsAmount, grossUp, setGrossUp, netAmount, setNetAmount }}
         tdsCodes={tdsCodes}
+        expenseLedgers={expenseLedgers}
         taxableValue={fields.amounts.taxable_value}
         total={fields.amounts.total}
         amountAlreadyPaid={fields.amounts.amount_already_paid}

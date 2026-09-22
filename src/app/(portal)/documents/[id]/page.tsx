@@ -2,8 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { findVendorMatch } from "@/lib/vendors/match";
+import { fetchExpenseLedgers } from "@/lib/expense-ledgers/data";
 import { formatDate } from "@/lib/format";
-import type { Client, Document, Extraction, Profile, Review, TdsCode, Vendor } from "@/lib/supabase/types";
+import type { Client, Document, ExpenseLedger, Extraction, Profile, Review, TdsCode, Vendor } from "@/lib/supabase/types";
 import ViewDocumentButton from "../view-document-button";
 import ExtractButton from "./extract-button";
 import ReviewForm from "./review-form";
@@ -104,6 +105,7 @@ export default async function DocumentDetailPage({
   let vendorMatch: Vendor | null = null;
   let possibleNameMatches: Vendor[] = [];
   let tdsCodes: TdsCode[] = [];
+  let expenseLedgers: ExpenseLedger[] = [];
 
   if (needsReviewForm && aiFields) {
     const match = await findVendorMatch(supabase, document.org_id, document.client_id, aiFields.vendor.gstin, aiFields.vendor.pan, aiFields.vendor.name);
@@ -112,12 +114,12 @@ export default async function DocumentDetailPage({
   }
 
   if (needsReviewForm || canCheckerDecide) {
-    const { data: codes } = await supabase
-      .from("tds_codes")
-      .select("*")
-      .order("code", { ascending: true })
-      .returns<TdsCode[]>();
+    const [{ data: codes }, ledgers] = await Promise.all([
+      supabase.from("tds_codes").select("*").order("code", { ascending: true }).returns<TdsCode[]>(),
+      fetchExpenseLedgers(supabase, document.client_id),
+    ]);
     tdsCodes = codes ?? [];
+    expenseLedgers = ledgers;
   }
 
   return (
@@ -180,6 +182,7 @@ export default async function DocumentDetailPage({
               vendorMatch={vendorMatch}
               possibleNameMatches={possibleNameMatches}
               tdsCodes={tdsCodes}
+              expenseLedgers={expenseLedgers}
               rejectionComment={document.review_status === "rejected" ? latestReview?.checker_comment : null}
             />
           )}
@@ -193,6 +196,7 @@ export default async function DocumentDetailPage({
                   review={latestReview}
                   flags={flags}
                   tdsCodes={tdsCodes}
+                  expenseLedgers={expenseLedgers}
                   vendorName={reviewVendor?.name ?? null}
                   vendorPendingId={reviewVendor && !reviewVendor.is_approved ? reviewVendor.id : null}
                 />

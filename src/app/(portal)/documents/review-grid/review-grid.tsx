@@ -495,6 +495,9 @@ export default function ReviewGrid({
                     className={inputClass}
                   >
                     <option value="">— none —</option>
+                    {state.expenseLedgerName && !expenseLedgers.some((l) => l.name === state.expenseLedgerName) && (
+                      <option value={state.expenseLedgerName}>{state.expenseLedgerName} (not in master list)</option>
+                    )}
                     {expenseLedgers.map((l) => (
                       <option key={l.id} value={l.name}>
                         {l.name}

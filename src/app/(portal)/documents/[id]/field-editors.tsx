@@ -3,7 +3,7 @@
 import { computeGrossUp } from "@/lib/tds/gross-up";
 import { formatNumber } from "@/lib/format";
 import type { ExtractedFields } from "@/lib/extraction/schema";
-import type { PaymentRoute, TdsCode } from "@/lib/supabase/types";
+import type { ExpenseLedger, PaymentRoute, TdsCode } from "@/lib/supabase/types";
 
 type Amounts = ExtractedFields["amounts"];
 
@@ -329,12 +329,14 @@ export interface LedgerTdsState {
 export function LedgerTdsFields({
   state,
   tdsCodes,
+  expenseLedgers,
   taxableValue,
   total,
   amountAlreadyPaid,
 }: {
   state: LedgerTdsState;
   tdsCodes: TdsCode[];
+  expenseLedgers: ExpenseLedger[];
   taxableValue: number | null;
   total: number | null;
   amountAlreadyPaid: number | null;
@@ -361,7 +363,24 @@ export function LedgerTdsFields({
     <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <h2 className="mb-3 text-sm font-semibold text-slate-900">Ledger, TDS and gross-up</h2>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <TextInput label="Expense ledger" value={expenseLedger} onChange={setExpenseLedger} />
+        <div>
+          <label className="mb-1 block text-xs text-slate-500">Expense ledger</label>
+          <select
+            value={expenseLedger}
+            onChange={(e) => setExpenseLedger(e.target.value)}
+            className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+          >
+            <option value="">— none —</option>
+            {expenseLedger && !expenseLedgers.some((l) => l.name === expenseLedger) && (
+              <option value={expenseLedger}>{expenseLedger} (not in master list)</option>
+            )}
+            {expenseLedgers.map((l) => (
+              <option key={l.id} value={l.name}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <div>
           <label className="mb-1 block text-xs text-slate-500">TDS code</label>
           <select

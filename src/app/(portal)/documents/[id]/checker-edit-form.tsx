@@ -7,18 +7,20 @@ import { checkerDecide } from "../actions";
 import { EditableExtractedFields, LedgerTdsFields, PaymentRouteField } from "./field-editors";
 import { formatNumber } from "@/lib/format";
 import type { ExtractedFields, ValidationFlag } from "@/lib/extraction/schema";
-import type { PaymentRoute, Review, TdsCode } from "@/lib/supabase/types";
+import type { ExpenseLedger, PaymentRoute, Review, TdsCode } from "@/lib/supabase/types";
 
 export default function CheckerEditForm({
   review,
   flags,
   tdsCodes,
+  expenseLedgers,
   vendorName,
   vendorPendingId,
 }: {
   review: Review;
   flags: ValidationFlag[];
   tdsCodes: TdsCode[];
+  expenseLedgers: ExpenseLedger[];
   vendorName: string | null;
   vendorPendingId: string | null;
 }) {
@@ -107,6 +109,7 @@ export default function CheckerEditForm({
       <LedgerTdsFields
         state={{ expenseLedger, setExpenseLedger, tdsCode, setTdsCode, tdsRate, setTdsRate, tdsAmount, setTdsAmount, grossUp, setGrossUp, netAmount, setNetAmount }}
         tdsCodes={tdsCodes}
+        expenseLedgers={expenseLedgers}
         taxableValue={fields.amounts.taxable_value}
         total={fields.amounts.total}
         amountAlreadyPaid={fields.amounts.amount_already_paid}
