@@ -338,6 +338,14 @@ The build sequence has six steps.
   `last_tds_rate` (the vendor's most recently *used* code/rate, updated automatically after every
   invoice) still take priority once they exist. Every invoice keeps its own editable TDS code and
   rate regardless — this only changes what the field starts pre-filled with.
+- **Fixed the Razorpay payout file** — it was matching the wrong Razorpay template (the
+  API-oriented "Bulk Payouts (composite)" format, amounts in paise) instead of the one actually
+  used for bulk upload from the RazorpayX dashboard ("Bank transfer using Beneficiary details",
+  amounts in plain rupees). That mismatch was also the cause of amounts showing 100x too high
+  (e.g. ₹50,000 exporting as ₹50,00,000) — the paise conversion was correct for the wrong format.
+  The export now matches the real template's columns, header wording and rupee amounts exactly,
+  and narration text is stripped of special characters per that template's own rule. No API
+  integration exists in this app today, so only this one (bulk-upload) format is generated.
 
 Not yet built: email intake (needs a Google account connection), Google Drive filing, payments, and
 the Google Sheets/Tally exports.
